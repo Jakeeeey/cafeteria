@@ -33,26 +33,113 @@ import {
 const data = {
     navMain: [
         { title: "Dashboard", url: "/cafeteria/", icon: LayoutDashboard },
-        /*{
-            title: "Treasury",
+        {
+            title: "Kitchen (Admin)",
             url: "#",
             icon: Landmark,
-            items: [
-                {
-                    title: "Budgeting",
-                    url: "#",
-                    icon: BudgetingIcon,
-                    items: [
-                        { title: "Dashboard", url: "/fm/treasury/budgeting/dashboard", icon: SubDashboardIcon },
-                        { title: "Budget Approvals", url: "/fm/treasury/budgeting/budget-approvals", icon: BadgeCheck },
-                        { title: "Budget Records", url: "/fm/treasury/budgeting/budget-records", icon: FolderKanban },
-                        { title: "Reports", url: "/fm/treasury/budgeting/reports", icon: BarChart3 },
-                    ],
+            items: 
+            [
+                { 
+                    title: "Ingredient Registration", 
+                    url: "/cafeteria/kitchen/ingredient-registration", 
                 },
-                { title: "Disbursement", url: "/fm/treasury/disbursement", icon: DisbursementIcon },
-                { title: "Remittances", url: "/fm/treasury/remittances", icon: ArrowLeftRight },
+                { 
+                    title: "Product Meal Registration", 
+                    url: "/cafeteria/kitchen/product-meal-registration", 
+                },
+                { 
+                    title: "Meal Schedule Registration", 
+                    url: "/cafeteria/kitchen/meal-schedule-registration", 
+                },
+                { 
+                    title: "Ingredient Price Change Request", 
+                    url: "/cafeteria/kitchen/ingredient-price-change-request", 
+                },
+                { 
+                    title: "Ingredient Price Approval", 
+                    url: "/cafeteria/kitchen/ingredient-price-approval", 
+                },
+                { 
+                    title: "Ingredient Price List", 
+                    url: "/cafeteria/kitchen/ingredient-price-list", 
+                },
             ],
-        },*/
+        },
+        {
+            title: "KIOSK",
+            url: "#",
+            icon: Landmark,
+            items: 
+            [
+                { 
+                    title: "User Login RFID", 
+                    url: "/cafeteria/kiosk/user-login-rfid", 
+                },
+                { 
+                    title: "Menu", 
+                    url: "/cafeteria/kiosk/menu", 
+                },
+                { 
+                    title: "Confirm Order", 
+                    url: "/cafeteria/kiosk/confirm-order", 
+                },
+            ],
+        },
+        {
+            title: "Kitchen Order",
+            url: "#",
+            icon: Landmark,
+            items: 
+            [
+                { 
+                    title: "Order List", 
+                    url: "/cafeteria/kitchen-order/order-list", 
+                },
+            ],
+        },
+        {
+            title: "Sales Report",
+            url: "#",
+            icon: Landmark,
+            items: 
+            [
+                { 
+                    title: "Per Day Report", 
+                    url: "/cafeteria/sales-report/per-day-report", 
+                },
+                { 
+                    title: "Per Employee Report", 
+                    url: "/cafeteria/sales-report/per-employee-report", 
+                },
+            ],
+        },
+        // {
+        //     title: "Ingredient Price Change Request",
+        //     url: "#",
+        //     icon: Landmark,
+        //     items: 
+        //     [
+        //         { 
+        //             title: "Per Day Report", 
+        //             url: "/cafeteria/sales-report/per-day-report", 
+        //         },
+        //         { 
+        //             title: "Per Employee Report", 
+        //             url: "/cafeteria/sales-report/per-employee-report", 
+        //         },
+        //         // {
+        //         //     title: "Budgeting",
+        //         //     url: "#",
+        //         //     icon: BudgetingIcon,
+        //         //     items: [
+        //         //         { title: "Dashboard", url: "/fm/treasury/budgeting/dashboard", icon: SubDashboardIcon },
+        //         //         { title: "Budget Approvals", url: "/fm/treasury/budgeting/budget-approvals", icon: BadgeCheck },
+        //         //         { title: "Budget Records", url: "/fm/treasury/budgeting/budget-records", icon: FolderKanban },
+        //         //         { title: "Reports", url: "/fm/treasury/budgeting/reports", icon: BarChart3 },
+        //         //     ],
+        //         // },
+        //     ],
+        // },
     ],
 };
 
