@@ -1,11 +1,18 @@
 "use client";
 
 import * as React from "react";
-import { PlusIcon, RefreshCwIcon } from "lucide-react";
+import { PlusIcon, RefreshCwIcon, XIcon } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 import IngredientTable from "./components/IngredientTable";
 import IngredientFormDialog from "./components/IngredientFormDialog";
@@ -29,6 +36,8 @@ const EMPTY_OPTIONS: IngredientOptions = {
   suppliers: [],
 };
 
+const ALL = "__all__";
+
 export default function IngredientRegistrationModule() {
   // ─ Ingredient list state ──────────────────────────────────────────────
   const [ingredients, setIngredients] = React.useState<Ingredient[]>([]);
@@ -42,8 +51,11 @@ export default function IngredientRegistrationModule() {
   const [dialogOpen, setDialogOpen] = React.useState(false);
   const [editTarget, setEditTarget] = React.useState<Ingredient | null>(null);
 
-  // ─ Search state ────────────────────────────────────────────────────────
+  // ─ Search + filter state ──────────────────────────────────────────────
   const [search, setSearch] = React.useState("");
+  const [filterBrand, setFilterBrand] = React.useState(ALL);
+  const [filterCategory, setFilterCategory] = React.useState(ALL);
+  const [filterSupplier, setFilterSupplier] = React.useState(ALL);
 
   // ─── Load ingredients ──────────────────────────────────────────────────────
   const loadIngredients = React.useCallback(async () => {
@@ -73,19 +85,19 @@ export default function IngredientRegistrationModule() {
 
   React.useEffect(() => {
     loadIngredients();
-  }, [loadIngredients]);
+    // Load options on mount so filters are populated immediately
+    loadOptions();
+  }, [loadIngredients, loadOptions]);
 
   // ─── Open dialog handlers ────────────────────────────────────────────────
   function openAddDialog() {
     setEditTarget(null);
     setDialogOpen(true);
-    loadOptions();
   }
 
   function openEditDialog(ingredient: Ingredient) {
     setEditTarget(ingredient);
     setDialogOpen(true);
-    loadOptions();
   }
 
   // ─── Form submit handler ──────────────────────────────────────────────────
@@ -105,24 +117,60 @@ export default function IngredientRegistrationModule() {
       await loadIngredients();
     } catch (err: any) {
       toast.error(err?.message ?? "Something went wrong.");
-      // Re-throw so the form keeps the submitting state locked until error is shown
       throw err;
     }
   }
 
+  // ─── Has active filters ───────────────────────────────────────────────────
+  const hasFilters =
+    search.trim() !== "" ||
+    filterBrand !== ALL ||
+    filterCategory !== ALL ||
+    filterSupplier !== ALL;
+
+  function clearFilters() {
+    setSearch("");
+    setFilterBrand(ALL);
+    setFilterCategory(ALL);
+    setFilterSupplier(ALL);
+  }
+
   // ─── Filtered list ───────────────────────────────────────────────────────
   const filtered = React.useMemo(() => {
+    let result = ingredients;
+
     const q = search.trim().toLowerCase();
-    if (!q) return ingredients;
-    return ingredients.filter(
-      (i) =>
-        i.name.toLowerCase().includes(q) ||
-        (i.description ?? "").toLowerCase().includes(q) ||
-        (i.brand_name ?? "").toLowerCase().includes(q) ||
-        (i.category_name ?? "").toLowerCase().includes(q) ||
-        (i.supplier_name ?? "").toLowerCase().includes(q)
-    );
-  }, [ingredients, search]);
+    if (q) {
+      result = result.filter(
+        (i) =>
+          i.name.toLowerCase().includes(q) ||
+          (i.description ?? "").toLowerCase().includes(q) ||
+          (i.brand_name ?? "").toLowerCase().includes(q) ||
+          (i.category_name ?? "").toLowerCase().includes(q) ||
+          (i.supplier_name ?? "").toLowerCase().includes(q)
+      );
+    }
+
+    if (filterBrand !== ALL) {
+      result = result.filter(
+        (i) => String(i.brand_id) === filterBrand
+      );
+    }
+
+    if (filterCategory !== ALL) {
+      result = result.filter(
+        (i) => String(i.category_id) === filterCategory
+      );
+    }
+
+    if (filterSupplier !== ALL) {
+      result = result.filter(
+        (i) => String(i.supplier) === filterSupplier
+      );
+    }
+
+    return result;
+  }, [ingredients, search, filterBrand, filterCategory, filterSupplier]);
 
   // ─── Render ─────────────────────────────────────────────────────────────
   return (
@@ -157,13 +205,68 @@ export default function IngredientRegistrationModule() {
         </div>
       </div>
 
-      {/* ─ Search ───────────────────────────────────────────────────────────── */}
-      <div className="max-w-sm">
+      {/* ─ Search + Filters ─────────────────────────────────────────────────── */}
+      <div className="flex flex-wrap items-center gap-2">
+        {/* Search */}
         <Input
+          className="h-9 w-64"
           placeholder="Search by name, brand, category…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
+
+        {/* Brand filter */}
+        <Select value={filterBrand} onValueChange={setFilterBrand}>
+          <SelectTrigger className="h-9 w-40">
+            <SelectValue placeholder="Brand" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL}>All Brands</SelectItem>
+            {options.brands.map((b) => (
+              <SelectItem key={b.value} value={String(b.value)}>
+                {b.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        {/* Category filter */}
+        <Select value={filterCategory} onValueChange={setFilterCategory}>
+          <SelectTrigger className="h-9 w-40">
+            <SelectValue placeholder="Category" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL}>All Categories</SelectItem>
+            {options.categories.map((c) => (
+              <SelectItem key={c.value} value={String(c.value)}>
+                {c.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        {/* Supplier filter */}
+        <Select value={filterSupplier} onValueChange={setFilterSupplier}>
+          <SelectTrigger className="h-9 w-40">
+            <SelectValue placeholder="Supplier" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL}>All Suppliers</SelectItem>
+            {options.suppliers.map((s) => (
+              <SelectItem key={s.value} value={String(s.value)}>
+                {s.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        {/* Clear filters */}
+        {hasFilters && (
+          <Button variant="ghost" size="sm" onClick={clearFilters}>
+            <XIcon className="size-3.5 mr-1" />
+            Clear
+          </Button>
+        )}
       </div>
 
       {/* ─ Table ────────────────────────────────────────────────────────────── */}
