@@ -33,6 +33,7 @@ export interface Ingredient {
   unit_name?: string | null;
   unit_abbreviation?: string | null;
   unit_count: number;
+  cost_per_unit: number;
   supplier: number | null;
   supplier_name?: string | null;
   created_at?: string;
