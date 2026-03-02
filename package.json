@@ -34,9 +34,11 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
-    "@types/node": "^20",
+    "@types/node": "^20.19.34",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/statuses": "^2.0.6",
+    "@types/validate-npm-package-name": "^4.0.2",
     "eslint": "^9",
     "eslint-config-next": "16.1.6",
     "shadcn": "^3.8.5",
