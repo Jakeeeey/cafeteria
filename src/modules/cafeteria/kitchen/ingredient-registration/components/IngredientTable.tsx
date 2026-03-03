@@ -21,13 +21,31 @@ interface IngredientTableProps {
   ingredients: Ingredient[];
   isLoading: boolean;
   onEdit: (ingredient: Ingredient) => void;
+  itemsPerPage?: number;
 }
 
 export default function IngredientTable({
   ingredients,
   isLoading,
   onEdit,
+  itemsPerPage = 10,
 }: IngredientTableProps) {
+  const [currentPage, setCurrentPage] = React.useState(1);
+
+  const totalPages = Math.max(1, Math.ceil(ingredients.length / itemsPerPage));
+  const paginatedIngredients = ingredients.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
+  const handlePrevious = () => setCurrentPage((p) => Math.max(1, p - 1));
+  const handleNext = () => setCurrentPage((p) => Math.min(totalPages, p + 1));
+
+  // Reset to page 1 when ingredients list changes
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [ingredients]);
+
   return (
     <div className="rounded-md border overflow-hidden">
       <Table>
@@ -66,10 +84,10 @@ export default function IngredientTable({
               </TableCell>
             </TableRow>
           ) : (
-            ingredients.map((row, index) => (
+            paginatedIngredients.map((row, index) => (
               <TableRow key={row.id}>
                 <TableCell className="text-center text-muted-foreground text-sm">
-                  {index + 1}
+                  {(currentPage - 1) * itemsPerPage + index + 1}
                 </TableCell>
                 <TableCell className="font-medium">{row.name}</TableCell>
                 <TableCell className="hidden sm:table-cell text-muted-foreground max-w-[180px] truncate">
@@ -127,6 +145,27 @@ export default function IngredientTable({
           )}
         </TableBody>
       </Table>
+      <div className="flex items-center justify-end space-x-2 p-4 border-t">
+        <div className="text-sm text-muted-foreground mr-4">
+          Page {currentPage} of {totalPages}
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handlePrevious}
+          disabled={currentPage === 1}
+        >
+          Previous
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleNext}
+          disabled={currentPage === totalPages}
+        >
+          Next
+        </Button>
+      </div>
     </div>
   );
 }
