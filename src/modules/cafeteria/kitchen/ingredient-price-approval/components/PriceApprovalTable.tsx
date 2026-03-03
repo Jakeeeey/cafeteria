@@ -77,8 +77,8 @@ export default function PriceApprovalTable({
                                     <TableCell className="font-medium">{request.ingredient_name}</TableCell>
                                     <TableCell>{request.unit_abbreviation ?? request.unit_name ?? "N/A"}</TableCell>
                                     <TableCell>{request.unit_count != null ? Number(request.unit_count).toFixed(2) : "0.00"}</TableCell>
-                                    <TableCell>₱{Number(request.old_cost).toFixed(4)}</TableCell>
-                                    <TableCell>₱{Number(request.new_cost).toFixed(4)}</TableCell>
+                                    <TableCell>₱{Number(request.old_cost).toFixed(2)}</TableCell>
+                                    <TableCell>₱{Number(request.new_cost).toFixed(2)}</TableCell>
                                     <TableCell>
                                         <div className="flex items-center gap-2">
                                             <Button
