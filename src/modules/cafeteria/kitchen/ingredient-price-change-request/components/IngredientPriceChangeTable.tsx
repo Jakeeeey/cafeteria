@@ -76,7 +76,6 @@ export default function IngredientPriceChangeTable({
                                     <TableCell>₱{ingredient.cost_per_unit != null ? Number(ingredient.cost_per_unit).toFixed(2) : "0.00"}</TableCell>
                                     <TableCell>
                                         <Button
-                                            variant="outline"
                                             size="sm"
                                             onClick={() => onRequestChange(ingredient)}
                                         >
