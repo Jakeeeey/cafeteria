@@ -100,7 +100,7 @@ export default function IngredientTable({
                     maximumFractionDigits: 4,
                   })}
                 </TableCell>
-                <TableCell className="hidden lg:table-cell text-right tabular-nums">
+                <TableCell className="hidden lg:table-cell text-right tabular-nums">₱
                   {Number(row.cost_per_unit ?? 0).toLocaleString(undefined, {
                     minimumFractionDigits: 2,
                     maximumFractionDigits: 4,
