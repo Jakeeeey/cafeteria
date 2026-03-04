@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState } from "react"
-import { ArrowRightLeft } from "lucide-react"
+import { Check, X } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -14,26 +14,28 @@ import {
 } from "@/components/ui/table"
 import { Skeleton } from "@/components/ui/skeleton"
 
-import type { Ingredient } from "../types"
+import type { PriceRequest } from "../types"
 
 const ITEMS_PER_PAGE = 10
 
-interface IngredientTableProps {
-    ingredients: Ingredient[]
+interface PriceApprovalTableProps {
+    requests: PriceRequest[]
     isLoading: boolean
-    onRequestChange: (ingredient: Ingredient) => void
+    onApprove: (request: PriceRequest) => void
+    onReject: (request: PriceRequest) => void
 }
 
-export default function IngredientPriceChangeTable({
-    ingredients,
+export default function PriceApprovalTable({
+    requests,
     isLoading,
-    onRequestChange,
-}: IngredientTableProps) {
+    onApprove,
+    onReject,
+}: PriceApprovalTableProps) {
     const [currentPage, setCurrentPage] = useState(1)
 
-    const totalPages = Math.ceil(ingredients.length / ITEMS_PER_PAGE)
+    const totalPages = Math.ceil(requests.length / ITEMS_PER_PAGE)
     const startIndex = (currentPage - 1) * ITEMS_PER_PAGE
-    const currentIngredients = ingredients.slice(startIndex, startIndex + ITEMS_PER_PAGE)
+    const currentRequests = requests.slice(startIndex, startIndex + ITEMS_PER_PAGE)
 
     const handlePrevious = () => {
         if (currentPage > 1) setCurrentPage(currentPage - 1)
@@ -52,8 +54,9 @@ export default function IngredientPriceChangeTable({
                             <TableHead>Ingredient Name</TableHead>
                             <TableHead>Unit</TableHead>
                             <TableHead>Quantity</TableHead>
-                            <TableHead>Cost Per Unit</TableHead>
-                            <TableHead className="w-[200px]">Actions</TableHead>
+                            <TableHead>Old Price</TableHead>
+                            <TableHead>New Price</TableHead>
+                            <TableHead className="w-[180px]">Actions</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -64,31 +67,43 @@ export default function IngredientPriceChangeTable({
                                     <TableCell><Skeleton className="h-4 w-1/2" /></TableCell>
                                     <TableCell><Skeleton className="h-4 w-1/2" /></TableCell>
                                     <TableCell><Skeleton className="h-4 w-1/2" /></TableCell>
+                                    <TableCell><Skeleton className="h-4 w-1/2" /></TableCell>
                                     <TableCell><Skeleton className="h-8 w-[160px]" /></TableCell>
                                 </TableRow>
                             ))
-                        ) : currentIngredients.length > 0 ? (
-                            currentIngredients.map((ingredient) => (
-                                <TableRow key={ingredient.id}>
-                                    <TableCell className="font-medium">{ingredient.name}</TableCell>
-                                    <TableCell>{ingredient.unit_abbreviation ?? ingredient.unit_name ?? "N/A"}</TableCell>
-                                    <TableCell>₱{ingredient.unit_count != null ? Number(ingredient.unit_count).toFixed(2) : "0.00"}</TableCell>
-                                    <TableCell>₱{ingredient.cost_per_unit != null ? Number(ingredient.cost_per_unit).toFixed(2) : "0.00"}</TableCell>
+                        ) : currentRequests.length > 0 ? (
+                            currentRequests.map((request) => (
+                                <TableRow key={request.id}>
+                                    <TableCell className="font-medium">{request.ingredient_name}</TableCell>
+                                    <TableCell>{request.unit_abbreviation ?? request.unit_name ?? "N/A"}</TableCell>
+                                    <TableCell>{request.unit_count != null ? Number(request.unit_count).toFixed(2) : "0.00"}</TableCell>
+                                    <TableCell>₱{Number(request.old_cost).toFixed(2)}</TableCell>
+                                    <TableCell>₱{Number(request.new_cost).toFixed(2)}</TableCell>
                                     <TableCell>
-                                        <Button
-                                            size="sm"
-                                            onClick={() => onRequestChange(ingredient)}
-                                        >
-                                            <ArrowRightLeft className="mr-2 h-4 w-4" />
-                                            Request Price Change
-                                        </Button>
+                                        <div className="flex items-center gap-2">
+                                            <Button
+                                                size="sm"
+                                                onClick={() => onApprove(request)}
+                                            >
+                                                <Check className="mr-1 h-4 w-4" />
+                                                Approve
+                                            </Button>
+                                            <Button
+                                                variant="destructive"
+                                                size="sm"
+                                                onClick={() => onReject(request)}
+                                            >
+                                                <X className="mr-1 h-4 w-4" />
+                                                Reject
+                                            </Button>
+                                        </div>
                                     </TableCell>
                                 </TableRow>
                             ))
                         ) : (
                             <TableRow>
-                                <TableCell colSpan={5} className="h-24 text-center">
-                                    No ingredients found.
+                                <TableCell colSpan={6} className="h-24 text-center">
+                                    No pending price requests found.
                                 </TableCell>
                             </TableRow>
                         )}

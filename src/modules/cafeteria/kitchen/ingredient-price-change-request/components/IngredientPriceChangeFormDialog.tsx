@@ -96,7 +96,7 @@ export default function IngredientPriceChangeFormDialog({
                             <div className="grid grid-cols-2 text-sm">
                                 <span className="text-muted-foreground">Current Price:</span>
                                 <span className="font-medium">
-                                    ₱{ingredient.cost_per_unit != null ? Number(ingredient.cost_per_unit).toFixed(4) : "0.0000"}
+                                    ₱{ingredient.cost_per_unit != null ? Number(ingredient.cost_per_unit).toFixed(2) : "0.00"}
                                 </span>
                             </div>
                         </div>
@@ -107,8 +107,8 @@ export default function IngredientPriceChangeFormDialog({
                                 <Input
                                     id="new-price"
                                     type="number"
-                                    step="0.0001"
-                                    placeholder="0.0000"
+                                    step="0.01"
+                                    placeholder="0.00"
                                     value={requestedPrice}
                                     onChange={(e) => setRequestedPrice(e.target.value)}
                                     required

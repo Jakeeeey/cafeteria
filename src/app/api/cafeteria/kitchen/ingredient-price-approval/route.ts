@@ -1,0 +1,271 @@
+import { NextRequest, NextResponse } from "next/server";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
+const TIMEOUT_MS = 15_000;
+const COOKIE_NAME = "vos_access_token";
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function baseUrl(): string {
+    const url = process.env.NEXT_PUBLIC_API_BASE_URL;
+    if (!url) throw new Error("NEXT_PUBLIC_API_BASE_URL is not configured.");
+    return url.replace(/\/$/, "");
+}
+
+function staticToken(): string {
+    const token = process.env.DIRECTUS_STATIC_TOKEN;
+    if (!token) throw new Error("DIRECTUS_STATIC_TOKEN is not configured.");
+    return token;
+}
+
+function authHeaders(): Record<string, string> {
+    return {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        Authorization: `Bearer ${staticToken()}`,
+    };
+}
+
+async function proxyFetch(url: string, init: RequestInit): Promise<Response> {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS);
+    try {
+        return await fetch(url, { ...init, signal: controller.signal, cache: "no-store" });
+    } finally {
+        clearTimeout(timeout);
+    }
+}
+
+async function parseJson(res: Response): Promise<any> {
+    const text = await res.text();
+    try {
+        return text ? JSON.parse(text) : null;
+    } catch {
+        return text;
+    }
+}
+
+function decodeJwtPayload(token: string): any | null {
+    try {
+        const parts = token.split(".");
+        if (parts.length < 2) return null;
+        const p = parts[1];
+        const b64 = p.replace(/-/g, "+").replace(/_/g, "/");
+        const padded = b64 + "=".repeat((4 - (b64.length % 4)) % 4);
+        const json = Buffer.from(padded, "base64").toString("utf8");
+        return JSON.parse(json);
+    } catch {
+        return null;
+    }
+}
+
+function pickString(obj: any, keys: string[]): string {
+    if (!obj) return "";
+    for (const k of keys) {
+        const v = obj[k];
+        if (typeof v === "string" && v.trim()) return v.trim();
+    }
+    return "";
+}
+
+async function resolveUserId(req: NextRequest, base: string, headers: Record<string, string>): Promise<number> {
+    const token = req.cookies.get(COOKIE_NAME)?.value;
+    const decoded = token ? decodeJwtPayload(token) : null;
+    let userId = Number(decoded?.id || decoded?.userId || decoded?.user_id || decoded?.employee_id);
+
+    if (!userId || isNaN(userId)) {
+        try {
+            const email = pickString(decoded, ["email", "Email", "sub"]);
+            let userQuery = `${base}/items/user?fields=user_id&limit=1`;
+            if (email) userQuery += `&filter[user_email][_eq]=${encodeURIComponent(email)}`;
+
+            const userRes = await proxyFetch(userQuery, { method: "GET", headers });
+            const userData = await parseJson(userRes);
+            const users = Array.isArray(userData) ? userData : (userData?.data ?? userData?.content ?? []);
+
+            if (users.length > 0 && users[0].user_id) {
+                userId = Number(users[0].user_id);
+            } else {
+                const fbRes = await proxyFetch(`${base}/items/user?fields=user_id&limit=1`, { method: "GET", headers });
+                const fbData = await parseJson(fbRes);
+                const fbUsers = Array.isArray(fbData) ? fbData : (fbData?.data ?? fbData?.content ?? []);
+                if (fbUsers.length > 0 && fbUsers[0].user_id) userId = Number(fbUsers[0].user_id);
+            }
+        } catch {
+            // ignore
+        }
+    }
+
+    return !userId || isNaN(userId) ? 0 : userId;
+}
+
+// ─── Normalize a raw Directus ingredient_price_requests row ──────────────────
+function normalizeRequest(raw: any): any {
+    const ing = typeof raw.ingredient_id === "object" ? raw.ingredient_id : null;
+    const unit = ing && typeof ing.unit_of_measurement === "object" ? ing.unit_of_measurement : null;
+
+    return {
+        id: raw.id,
+        ingredient_id: ing?.id ?? raw.ingredient_id,
+        ingredient_name: ing?.name ?? "Unknown",
+        unit_name: unit?.unit_name ?? unit?.name ?? null,
+        unit_abbreviation: unit?.abbreviation ?? null,
+        unit_count: ing?.unit_count != null ? Number(ing.unit_count) : 0,
+        old_cost: Number(raw.old_cost ?? 0),
+        new_cost: Number(raw.new_cost ?? 0),
+        request_reason: raw.request_reason ?? null,
+        status: raw.status ?? "pending",
+        requested_by: raw.requested_by,
+        requested_at: raw.requested_at,
+        processed_by: raw.processed_by ?? null,
+        processed_at: raw.processed_at ?? null,
+        approval_notes: raw.approval_notes ?? null,
+    };
+}
+
+// ─── GET – list pending ingredient price requests ─────────────────────────────
+export async function GET(req: NextRequest) {
+    try {
+        const headers = authHeaders();
+        const base = baseUrl();
+
+        const upstream = await proxyFetch(
+            `${base}/items/ingredient_price_requests?fields=*,ingredient_id.*,ingredient_id.unit_of_measurement.*&filter[status][_eq]=pending&sort=-requested_at`,
+            { method: "GET", headers }
+        );
+        const data = await parseJson(upstream);
+
+        if (!upstream.ok) {
+            console.error("[ingredient-price-approval GET] Upstream error", upstream.status, data);
+            return NextResponse.json(
+                { message: data?.errors?.[0]?.message ?? data?.message ?? "Failed to fetch price requests." },
+                { status: upstream.status }
+            );
+        }
+
+        const raw = Array.isArray(data) ? data : (data?.data ?? data?.content ?? []);
+        const list = raw.map(normalizeRequest);
+
+        return NextResponse.json(list, {
+            status: 200,
+            headers: { "Cache-Control": "no-store" },
+        });
+    } catch (err: any) {
+        console.error("[ingredient-price-approval GET]", err?.message);
+        return NextResponse.json(
+            { message: "Server error. Please contact Administrator." },
+            { status: 500 }
+        );
+    }
+}
+
+// ─── PATCH – approve or reject a price request ───────────────────────────────
+// Body: { id: number, action: "approved" | "rejected", approval_notes?: string }
+// When approved, also patches ingredients.cost_per_unit with new_cost.
+export async function PATCH(req: NextRequest) {
+    try {
+        const headers = authHeaders();
+        const base = baseUrl();
+
+        const body = await req.json().catch(() => null);
+        if (!body || !body.id || !body.action) {
+            return NextResponse.json(
+                { message: "Invalid request body. \"id\" and \"action\" are required." },
+                { status: 400 }
+            );
+        }
+
+        const { id, action, approval_notes } = body as {
+            id: number;
+            action: "approved" | "rejected";
+            approval_notes?: string;
+        };
+
+        if (action !== "approved" && action !== "rejected") {
+            return NextResponse.json(
+                { message: "\"action\" must be \"approved\" or \"rejected\"." },
+                { status: 400 }
+            );
+        }
+
+        const processed_by = await resolveUserId(req, base, headers);
+
+        // 1. Fetch the current request to get ingredient_id and new_cost (needed for approval)
+        const fetchRes = await proxyFetch(
+            `${base}/items/ingredient_price_requests/${id}?fields=id,ingredient_id,new_cost,status`,
+            { method: "GET", headers }
+        );
+        const fetchData = await parseJson(fetchRes);
+
+        if (!fetchRes.ok || !fetchData) {
+            return NextResponse.json(
+                { message: fetchData?.errors?.[0]?.message ?? "Price request not found." },
+                { status: fetchRes.status }
+            );
+        }
+
+        const existingRequest = fetchData?.data ?? fetchData;
+
+        // 2. Patch the price request record
+        const patchPayload: Record<string, any> = {
+            status: action,
+            processed_by: processed_by || null,
+            processed_at: new Date().toISOString(),
+            approval_notes: approval_notes?.trim() ?? null,
+        };
+
+        const patchRes = await proxyFetch(
+            `${base}/items/ingredient_price_requests/${id}`,
+            { method: "PATCH", headers, body: JSON.stringify(patchPayload) }
+        );
+        const patchData = await parseJson(patchRes);
+
+        if (!patchRes.ok) {
+            console.error("[ingredient-price-approval PATCH] Upstream error", patchRes.status, patchData);
+            return NextResponse.json(
+                { message: patchData?.errors?.[0]?.message ?? patchData?.message ?? "Failed to process price request." },
+                { status: patchRes.status }
+            );
+        }
+
+        // 3. If approved, update the ingredient's cost_per_unit
+        if (action === "approved") {
+            const ingredientId = typeof existingRequest.ingredient_id === "object"
+                ? existingRequest.ingredient_id?.id
+                : existingRequest.ingredient_id;
+
+            const newCost = Number(existingRequest.new_cost ?? 0);
+
+            if (ingredientId) {
+                const ingPatchRes = await proxyFetch(
+                    `${base}/items/ingredients/${ingredientId}`,
+                    {
+                        method: "PATCH",
+                        headers,
+                        body: JSON.stringify({ cost_per_unit: newCost }),
+                    }
+                );
+
+                if (!ingPatchRes.ok) {
+                    const ingData = await parseJson(ingPatchRes);
+                    console.error("[ingredient-price-approval PATCH] Ingredient cost update failed", ingPatchRes.status, ingData);
+                    // Return warning but don't block – the request is already marked as approved
+                    return NextResponse.json(
+                        { message: "Request approved but failed to update ingredient cost. Please update manually." },
+                        { status: 207 }
+                    );
+                }
+            }
+        }
+
+        return NextResponse.json(patchData ?? { ok: true }, { status: 200 });
+    } catch (err: any) {
+        console.error("[ingredient-price-approval PATCH]", err?.message);
+        return NextResponse.json(
+            { message: "Server error. Please contact Administrator." },
+            { status: 500 }
+        );
+    }
+}
