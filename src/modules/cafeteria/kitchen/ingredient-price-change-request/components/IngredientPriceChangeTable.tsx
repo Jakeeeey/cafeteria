@@ -72,7 +72,7 @@ export default function IngredientPriceChangeTable({
                                 <TableRow key={ingredient.id}>
                                     <TableCell className="font-medium">{ingredient.name}</TableCell>
                                     <TableCell>{ingredient.unit_abbreviation ?? ingredient.unit_name ?? "N/A"}</TableCell>
-                                    <TableCell>₱{ingredient.unit_count != null ? Number(ingredient.unit_count).toFixed(2) : "0.00"}</TableCell>
+                                    <TableCell>{ingredient.unit_count != null ? Number(ingredient.unit_count).toFixed(2) : "0.00"}</TableCell>
                                     <TableCell>₱{ingredient.cost_per_unit != null ? Number(ingredient.cost_per_unit).toFixed(2) : "0.00"}</TableCell>
                                     <TableCell>
                                         <Button
