@@ -44,14 +44,6 @@ const data = {
                     url: "/cafeteria/kitchen/ingredient-registration", 
                 },
                 { 
-                    title: "Product Meal Registration", 
-                    url: "/cafeteria/kitchen/product-meal-registration", 
-                },
-                { 
-                    title: "Meal Schedule Registration", 
-                    url: "/cafeteria/kitchen/meal-schedule-registration", 
-                },
-                { 
                     title: "Ingredient Price Change Request", 
                     url: "/cafeteria/kitchen/ingredient-price-change-request", 
                 },
@@ -62,6 +54,22 @@ const data = {
                 { 
                     title: "Ingredient Price List", 
                     url: "/cafeteria/kitchen/ingredient-price-list", 
+                },
+                 { 
+                    title: "Product Meal Registration", 
+                    url: "/cafeteria/kitchen/product-meal-registration", 
+                },
+                { 
+                    title: "Meal Schedule Registration", 
+                    url: "/cafeteria/kitchen/meal-schedule-registration", 
+                },
+                { 
+                    title: "Meal Purchase Order Requests", 
+                    url: "/cafeteria/kitchen/meal-purchase-order-request", 
+                },
+                { 
+                    title: "Meal Purchase Order Approval", 
+                    url: "/cafeteria/kitchen/meal-purchase-order-approval", 
                 },
             ],
         },
