@@ -74,7 +74,7 @@ function ScheduledMealCard({
       </div>
 
       <div className="flex items-center gap-1.5">
-        <Label className="text-[10px] text-muted-foreground shrink-0">Qty</Label>
+        <Label className="text-[10px] text-muted-foreground shrink-0">Quantity</Label>
         <Input
           type="number"
           min={1}

@@ -133,16 +133,18 @@ export function buildSubmitPayload(
         });
 
         for (const ing of entry.meal.ingredients) {
-          const needed = ing.quantity_per_serving * totalServings;
+          // required qty = ingredient quantity per preparation × number of preparations
+          const needed = ing.quantity_per_serving * entry.quantity;
           const existing = ingredientMap.get(ing.ingredient_id);
           if (existing) {
             existing.required_quantity += needed;
+            existing.estimated_cost += ing.cost_per_unit * needed;
           } else {
             ingredientMap.set(ing.ingredient_id, {
               ingredient_id: ing.ingredient_id,
               ingredient_name: ing.ingredient_name,
               required_quantity: needed,
-              estimated_cost: 0, // cost not tracked at schedule stage
+              estimated_cost: ing.cost_per_unit * needed,
             });
           }
         }
@@ -183,9 +185,8 @@ export function aggregateIngredients(schedule: WeeklySchedule): AggregatedIngred
   for (const day of DAYS_OF_WEEK) {
     for (const mt of MEAL_TYPES) {
       for (const entry of schedule[day][mt]) {
-        const totalServings = entry.quantity * entry.meal.serving_size;
         for (const ing of entry.meal.ingredients) {
-          const needed = ing.quantity_per_serving * totalServings;
+          const needed = ing.quantity_per_serving * entry.quantity;
           const existing = map.get(ing.ingredient_id);
           if (existing) {
             existing.total_quantity += needed;

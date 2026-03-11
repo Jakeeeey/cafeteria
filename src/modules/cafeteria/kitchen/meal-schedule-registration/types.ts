@@ -19,6 +19,7 @@ export interface MealIngredient {
   ingredient_id: number;
   ingredient_name: string | null;
   quantity_per_serving: number;
+  cost_per_unit: number;
   unit_name: string | null;
 }
 

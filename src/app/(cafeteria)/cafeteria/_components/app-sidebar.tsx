@@ -64,10 +64,6 @@ const data = {
                     url: "/cafeteria/kitchen/meal-schedule-registration", 
                 },
                 { 
-                    title: "Meal Purchase Order Requests", 
-                    url: "/cafeteria/kitchen/meal-purchase-order-request", 
-                },
-                { 
                     title: "Meal Purchase Order Approval", 
                     url: "/cafeteria/kitchen/meal-purchase-order-approval", 
                 },

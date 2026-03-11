@@ -63,7 +63,8 @@ function normalizeMeal(raw: any): any {
       ingredient_id:
         ing?.id ?? (typeof mi.ingredient_id === "number" ? mi.ingredient_id : null),
       ingredient_name: ing?.name ?? mi.ingredient_name ?? null,
-      quantity_per_serving: Number(mi.quantity_per_serving ?? 0),
+      quantity_per_serving: Number(mi.quantity ?? mi.quantity_per_serving ?? 0),
+      cost_per_unit: Number(ing?.cost_per_unit ?? 0),
       unit_name: ing?.unit_of_measurement?.unit_name ?? ing?.unit_name ?? mi.unit_name ?? null,
     };
   });
@@ -77,7 +78,7 @@ function normalizeMeal(raw: any): any {
       (typeof raw.category_id === "number" ? raw.category_id : null),
     category_name: category?.name ?? null,
     meal_type: raw.meal_type ?? null,
-    serving_size: Number(raw.serving_size ?? 1),
+    serving_size: Number(raw.serving_size ?? raw.serving ?? 1),
     ingredients,
   };
 }
@@ -149,29 +150,46 @@ export async function GET(req: NextRequest) {
 
     // ── Option A: fetch meals (the product-meal catalogue) ──────────────────
     if (sp.get("meals") === "true") {
-      const fields = [
-        "*",
-        "category_id.*",
-        "meal_ingredients.*",
-        "meal_ingredients.ingredient_id.*",
-        "meal_ingredients.ingredient_id.unit_of_measurement.*",
-      ].join(",");
+      // Fetch meals and meal_ingredients in parallel.
+      // We fetch meal_ingredients separately to avoid relying on Directus O2M
+      // relation aliases being configured in the schema builder.
+      const [mealsRes, miRes] = await Promise.all([
+        proxyFetch(
+          `${base}/items/meals?fields=${encodeURIComponent("*,category_id.*")}&filter[deleted_at][_null]=true&limit=-1`,
+          { method: "GET", headers }
+        ),
+        proxyFetch(
+          `${base}/items/meal_ingredients?fields=${encodeURIComponent("*,ingredient_id.*,ingredient_id.unit_of_measurement.*")}&filter[deleted_at][_null]=true&limit=-1`,
+          { method: "GET", headers }
+        ),
+      ]);
 
-      const upstream = await proxyFetch(
-        `${base}/items/meals?fields=${encodeURIComponent(fields)}&filter[deleted_at][_null]=true&limit=-1`,
-        { method: "GET", headers }
-      );
-      const data = await parseJson(upstream);
+      const [mealsData, miData] = await Promise.all([parseJson(mealsRes), parseJson(miRes)]);
 
-      if (!upstream.ok) {
-        console.error("[meal-schedule-registration GET meals]", upstream.status, data);
+      if (!mealsRes.ok) {
+        console.error("[meal-schedule-registration GET meals]", mealsRes.status, mealsData);
         return NextResponse.json(
-          { message: data?.errors?.[0]?.message ?? data?.message ?? "Failed to fetch meals." },
-          { status: upstream.status }
+          { message: mealsData?.errors?.[0]?.message ?? mealsData?.message ?? "Failed to fetch meals." },
+          { status: mealsRes.status }
         );
       }
 
-      const list = toList(data).map(normalizeMeal);
+      // Build a map: meal_id → ingredient rows
+      const miList = toList(miData);
+      const miByMealId = new Map<number, any[]>();
+      for (const mi of miList) {
+        const mealId = typeof mi.meal_id === "object" ? mi.meal_id?.id : Number(mi.meal_id);
+        if (!mealId) continue;
+        if (!miByMealId.has(mealId)) miByMealId.set(mealId, []);
+        miByMealId.get(mealId)!.push(mi);
+      }
+
+      // Inject the ingredients into each meal before normalizing
+      const list = toList(mealsData).map((raw: any) => {
+        raw.meal_ingredients = miByMealId.get(raw.id) ?? [];
+        return normalizeMeal(raw);
+      });
+
       return NextResponse.json(list, { headers: { "Cache-Control": "no-store" } });
     }
 
