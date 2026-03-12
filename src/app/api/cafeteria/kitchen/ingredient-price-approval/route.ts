@@ -105,11 +105,18 @@ async function resolveUserId(req: NextRequest, base: string, headers: Record<str
 function normalizeRequest(raw: any): any {
     const ing = typeof raw.ingredient_id === "object" ? raw.ingredient_id : null;
     const unit = ing && typeof ing.unit_of_measurement === "object" ? ing.unit_of_measurement : null;
+    const supplier = ing && typeof ing.supplier === "object" ? ing.supplier : null;
+    const requester = typeof raw.requested_by === "object" ? raw.requested_by : null;
+
+    const rFirstName = requester?.user_fname ?? "";
+    const rLastName = requester?.user_lname ?? "";
+    const requested_by_name = [rFirstName, rLastName].filter(Boolean).join(" ") || requester?.user_email || null;
 
     return {
         id: raw.id,
         ingredient_id: ing?.id ?? raw.ingredient_id,
         ingredient_name: ing?.name ?? "Unknown",
+        supplier_name: supplier?.supplier_name ?? supplier?.name ?? null,
         unit_name: unit?.unit_name ?? unit?.name ?? null,
         unit_abbreviation: unit?.abbreviation ?? null,
         unit_count: ing?.unit_count != null ? Number(ing.unit_count) : 0,
@@ -117,7 +124,8 @@ function normalizeRequest(raw: any): any {
         new_cost: Number(raw.new_cost ?? 0),
         request_reason: raw.request_reason ?? null,
         status: raw.status ?? "pending",
-        requested_by: raw.requested_by,
+        requested_by: requester?.user_id ?? raw.requested_by,
+        requested_by_name,
         requested_at: raw.requested_at,
         processed_by: raw.processed_by ?? null,
         processed_at: raw.processed_at ?? null,
@@ -132,7 +140,7 @@ export async function GET(req: NextRequest) {
         const base = baseUrl();
 
         const upstream = await proxyFetch(
-            `${base}/items/ingredient_price_requests?fields=*,ingredient_id.*,ingredient_id.unit_of_measurement.*&filter[status][_eq]=pending&sort=-requested_at`,
+            `${base}/items/ingredient_price_requests?fields=*,ingredient_id.*,ingredient_id.unit_of_measurement.*,ingredient_id.supplier.*,requested_by.*&filter[status][_eq]=pending&sort=-requested_at`,
             { method: "GET", headers }
         );
         const data = await parseJson(upstream);

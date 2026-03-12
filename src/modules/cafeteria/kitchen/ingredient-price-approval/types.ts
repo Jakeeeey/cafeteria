@@ -5,6 +5,7 @@ export interface PriceRequest {
     id: number;
     ingredient_id: number;
     ingredient_name: string;
+    supplier_name: string | null;
     unit_name: string | null;
     unit_abbreviation: string | null;
     unit_count: number;
@@ -13,6 +14,7 @@ export interface PriceRequest {
     request_reason: string | null;
     status: "pending" | "approved" | "rejected";
     requested_by: number;
+    requested_by_name: string | null;
     requested_at: string;
     processed_by: number | null;
     processed_at: string | null;

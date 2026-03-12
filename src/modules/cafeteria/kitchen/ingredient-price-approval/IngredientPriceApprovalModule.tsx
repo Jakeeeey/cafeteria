@@ -6,6 +6,13 @@ import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select"
 
 import PriceApprovalTable from "./components/PriceApprovalTable"
 import ApproveDialog from "./components/ApproveDialog"
@@ -17,6 +24,7 @@ export default function IngredientPriceApprovalModule() {
     const [requests, setRequests] = React.useState<PriceRequest[]>([])
     const [isLoading, setIsLoading] = React.useState(true)
     const [search, setSearch] = React.useState("")
+    const [supplierFilter, setSupplierFilter] = React.useState("all")
 
     const [selectedRequest, setSelectedRequest] = React.useState<PriceRequest | null>(null)
     const [isApproveDialogOpen, setIsApproveDialogOpen] = React.useState(false)
@@ -62,14 +70,25 @@ export default function IngredientPriceApprovalModule() {
 
     const filteredRequests = React.useMemo(() => {
         const q = search.trim().toLowerCase()
-        if (!q) return requests
-        return requests.filter(
-            (r) =>
+        return requests.filter((r) => {
+            if (supplierFilter !== "all" && (r.supplier_name ?? "") !== supplierFilter) return false
+            if (!q) return true
+            return (
                 r.ingredient_name.toLowerCase().includes(q) ||
+                (r.supplier_name ?? "").toLowerCase().includes(q) ||
                 (r.unit_name ?? "").toLowerCase().includes(q) ||
-                (r.request_reason ?? "").toLowerCase().includes(q)
-        )
-    }, [requests, search])
+                (r.request_reason ?? "").toLowerCase().includes(q) ||
+                (r.requested_by_name ?? "").toLowerCase().includes(q)
+            )
+        })
+    }, [requests, search, supplierFilter])
+
+    const supplierOptions = React.useMemo(() => {
+        const names = Array.from(
+            new Set(requests.map((r) => r.supplier_name).filter(Boolean) as string[])
+        ).sort()
+        return names
+    }, [requests])
 
     async function handleReject(values: RejectValues) {
         try {
@@ -109,18 +128,35 @@ export default function IngredientPriceApprovalModule() {
                 </div>
             </div>
 
-            {/* ─ Search ───────────────────────────────────────────────────────── */}
+            {/* ─ Search / Filters ─────────────────────────────────────────────── */}
             <div className="flex flex-wrap items-center gap-2">
                 <Input
                     className="h-9 w-64"
-                    placeholder="Search by ingredient, unit, reason…"
+                    placeholder="Search ingredient, supplier, reason…"
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                 />
-                {search.trim() !== "" && (
-                    <Button variant="ghost" size="sm" onClick={() => setSearch("")}>
+                <Select value={supplierFilter} onValueChange={setSupplierFilter}>
+                    <SelectTrigger className="h-9 w-48">
+                        <SelectValue placeholder="All Suppliers" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="all">All Suppliers</SelectItem>
+                        {supplierOptions.map((name) => (
+                            <SelectItem key={name} value={name}>
+                                {name}
+                            </SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+                {(search.trim() !== "" || supplierFilter !== "all") && (
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => { setSearch(""); setSupplierFilter("all") }}
+                    >
                         <XIcon className="size-3.5 mr-1" />
-                        Clear
+                        Clear filters
                     </Button>
                 )}
             </div>
