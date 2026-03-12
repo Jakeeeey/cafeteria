@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { ChevronLeftIcon, ChevronRightIcon, RefreshCwIcon } from "lucide-react";
+import { ChevronLeftIcon, ChevronRightIcon, RefreshCwIcon, Trash2Icon } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -170,6 +170,12 @@ export default function MealScheduleRegistrationModule() {
     });
   }
 
+  // ─── Clear schedule ────────────────────────────────────────────────────────
+  function handleClearSchedule() {
+    setSchedule(buildEmptyWeeklySchedule());
+    toast.success("Schedule cleared.");
+  }
+
   // ─── "Done Scheduling" → open review dialog ──────────────────────────────
   const entryCount = React.useMemo(
     () => countScheduleEntries(schedule),
@@ -234,6 +240,18 @@ export default function MealScheduleRegistrationModule() {
         </div>
 
         <div className="flex shrink-0 items-center gap-2">
+
+          {entryCount > 0 && (
+            <Button
+              variant="outline"
+              size="icon"
+              title="Clear all scheduled meals for this week"
+              onClick={handleClearSchedule}
+            >
+              <Trash2Icon className="size-4" />
+              <span className="sr-only">Clear schedule</span>
+            </Button>
+          )}
           <Button
             variant="outline"
             size="icon"
@@ -246,6 +264,8 @@ export default function MealScheduleRegistrationModule() {
             />
             <span className="sr-only">Refresh</span>
           </Button>
+
+          
 
           <Button
             onClick={handleOpenReview}
