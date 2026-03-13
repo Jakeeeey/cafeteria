@@ -33,6 +33,22 @@ import {
 const data = {
     navMain: [
         { title: "Dashboard", url: "/cafeteria/", icon: LayoutDashboard },
+         {
+            title: "File Management",
+            url: "#",
+            icon: Landmark,
+            items: 
+            [
+                { 
+                    title: "Brand Registration", 
+                    url: "/cafeteria/file-management/brand-registration", 
+                },
+                 { 
+                    title: "Category Registration", 
+                    url: "/cafeteria/file-management/category-registration", 
+                },
+            ],
+        },
         {
             title: "Kitchen (Admin)",
             url: "#",
