@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState } from "react"
-import { Check, X, TrendingUp, TrendingDown } from "lucide-react"
+import { Eye } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -21,8 +21,7 @@ const ITEMS_PER_PAGE = 10
 interface PriceApprovalTableProps {
     requests: PriceRequest[]
     isLoading: boolean
-    onApprove: (request: PriceRequest) => void
-    onReject: (request: PriceRequest) => void
+    onView: (request: PriceRequest) => void
 }
 
 function formatDate(dateStr: string | null | undefined): string {
@@ -43,8 +42,7 @@ function formatDate(dateStr: string | null | undefined): string {
 export default function PriceApprovalTable({
     requests,
     isLoading,
-    onApprove,
-    onReject,
+    onView,
 }: PriceApprovalTableProps) {
     const [currentPage, setCurrentPage] = useState(1)
 
@@ -71,96 +69,57 @@ export default function PriceApprovalTable({
                             <TableHead>Unit of Measurement</TableHead>
                             <TableHead className="text-right">Current Price</TableHead>
                             <TableHead className="text-right">New Price Request</TableHead>
-                            <TableHead className="text-right">Change</TableHead>
-                            <TableHead>Requested By</TableHead>
-                            <TableHead>Reason</TableHead>
                             <TableHead>Date</TableHead>
-                            <TableHead className="w-[160px]">Actions</TableHead>
+                            <TableHead className="w-[80px]">Actions</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
                         {isLoading ? (
                             Array.from({ length: 5 }).map((_, index) => (
                                 <TableRow key={`skeleton-${index}`}>
-                                    {Array.from({ length: 10 }).map((__, ci) => (
+                                    {Array.from({ length: 7 }).map((__, ci) => (
                                         <TableCell key={ci}><Skeleton className="h-4 w-full" /></TableCell>
                                     ))}
                                 </TableRow>
                             ))
                         ) : currentRequests.length > 0 ? (
                             currentRequests.map((request) => {
-                                const diff = Number(request.new_cost) - Number(request.old_cost)
-                                const pct = Number(request.old_cost) !== 0
-                                    ? (diff / Number(request.old_cost)) * 100
-                                    : 0
-                                const isIncrease = diff >= 0
-
                                 return (
                                     <TableRow key={request.id}>
-                                        <TableCell className="font-medium whitespace-nowrap">
+                                        <TableCell className="font-medium whitespace-nowrap py-3">
                                             {request.ingredient_name}
                                         </TableCell>
-                                        <TableCell className="whitespace-nowrap">
+                                        <TableCell className="whitespace-nowrap py-3">
                                             {request.supplier_name ?? <span className="text-muted-foreground">—</span>}
                                         </TableCell>
-                                        <TableCell className="whitespace-nowrap">
+                                        <TableCell className="whitespace-nowrap py-3">
                                             {request.unit_abbreviation ?? request.unit_name ?? "—"}
                                         </TableCell>
-                                        <TableCell className="text-right whitespace-nowrap">
+                                        <TableCell className="text-right whitespace-nowrap py-3">
                                             ₱{Number(request.old_cost).toFixed(2)}
                                         </TableCell>
-                                        <TableCell className="text-right whitespace-nowrap font-medium">
+                                        <TableCell className="text-right whitespace-nowrap font-medium py-3">
                                             ₱{Number(request.new_cost).toFixed(2)}
                                         </TableCell>
-                                        <TableCell className="text-right whitespace-nowrap">
-                                            <span className={`inline-flex items-center gap-1 text-sm font-medium ${isIncrease ? "text-destructive" : "text-green-600"}`}>
-                                                {isIncrease
-                                                    ? <TrendingUp className="h-3.5 w-3.5" />
-                                                    : <TrendingDown className="h-3.5 w-3.5" />
-                                                }
-                                                {isIncrease ? "+" : ""}₱{Math.abs(diff).toFixed(2)}
-                                                <span className="text-muted-foreground font-normal">
-                                                    ({isIncrease ? "+" : ""}{pct.toFixed(1)}%)
-                                                </span>
-                                            </span>
-                                        </TableCell>
-                                        <TableCell className="whitespace-nowrap">
-                                            {request.requested_by_name ?? <span className="text-muted-foreground text-xs">ID: {request.requested_by}</span>}
-                                        </TableCell>
-                                        <TableCell className="max-w-[200px]">
-                                            {request.request_reason
-                                                ? <span className="line-clamp-2 text-sm">{request.request_reason}</span>
-                                                : <span className="text-muted-foreground">—</span>
-                                            }
-                                        </TableCell>
-                                        <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
+                                        <TableCell className="whitespace-nowrap text-sm text-muted-foreground py-3">
                                             {formatDate(request.requested_at)}
                                         </TableCell>
-                                        <TableCell>
-                                            <div className="flex items-center gap-2">
-                                                <Button
-                                                    size="sm"
-                                                    onClick={() => onApprove(request)}
-                                                >
-                                                    <Check className="mr-1 h-4 w-4" />
-                                                    Approve
-                                                </Button>
-                                                <Button
-                                                    variant="destructive"
-                                                    size="sm"
-                                                    onClick={() => onReject(request)}
-                                                >
-                                                    <X className="mr-1 h-4 w-4" />
-                                                    Reject
-                                                </Button>
-                                            </div>
+                                        <TableCell className="py-3">
+                                            <Button
+                                                size="sm"
+                                                onClick={() => onView(request)}
+                                                title="View Details"
+                                            >
+                                                <Eye className="mr-1 h-4 w-4" />View                                                                                     
+                                                <span className="sr-only">View</span>
+                                            </Button>
                                         </TableCell>
                                     </TableRow>
                                 )
                             })
                         ) : (
                             <TableRow>
-                                <TableCell colSpan={10} className="h-24 text-center">
+                                <TableCell colSpan={7} className="h-24 text-center">
                                     No pending price requests found.
                                 </TableCell>
                             </TableRow>

@@ -113,7 +113,6 @@ export default function PurchaseOrderTable({
                                     </TableCell>
                                     <TableCell>
                                         <Button
-                                            variant="outline"
                                             size="sm"
                                             onClick={() => onViewDetail(order)}
                                         >

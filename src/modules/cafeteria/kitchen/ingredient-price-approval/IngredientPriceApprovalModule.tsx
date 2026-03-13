@@ -16,7 +16,6 @@ import {
 
 import PriceApprovalTable from "./components/PriceApprovalTable"
 import ApproveDialog from "./components/ApproveDialog"
-import RejectConfirmDialog from "./components/RejectConfirmDialog"
 import { fetchPriceRequests, approveRequest, rejectRequest } from "./providers/fetchProvider"
 import type { PriceRequest, ApproveValues, RejectValues } from "./types"
 
@@ -28,7 +27,6 @@ export default function IngredientPriceApprovalModule() {
 
     const [selectedRequest, setSelectedRequest] = React.useState<PriceRequest | null>(null)
     const [isApproveDialogOpen, setIsApproveDialogOpen] = React.useState(false)
-    const [isRejectDialogOpen, setIsRejectDialogOpen] = React.useState(false)
 
     const loadRequests = React.useCallback(async () => {
         setIsLoading(true)
@@ -46,14 +44,9 @@ export default function IngredientPriceApprovalModule() {
         loadRequests()
     }, [loadRequests])
 
-    function handleOpenApprove(request: PriceRequest) {
+    function handleOpenView(request: PriceRequest) {
         setSelectedRequest(request)
         setIsApproveDialogOpen(true)
-    }
-
-    function handleOpenReject(request: PriceRequest) {
-        setSelectedRequest(request)
-        setIsRejectDialogOpen(true)
     }
 
     async function handleApprove(values: ApproveValues) {
@@ -94,7 +87,7 @@ export default function IngredientPriceApprovalModule() {
         try {
             await rejectRequest(values)
             toast.success("Price change request rejected.")
-            setIsRejectDialogOpen(false)
+            setIsApproveDialogOpen(false)
             await loadRequests()
         } catch (error: any) {
             toast.error(error?.message ?? "Failed to reject request.")
@@ -165,8 +158,7 @@ export default function IngredientPriceApprovalModule() {
             <PriceApprovalTable
                 requests={filteredRequests}
                 isLoading={isLoading}
-                onApprove={handleOpenApprove}
-                onReject={handleOpenReject}
+                onView={handleOpenView}
             />
 
             {/* ─ Dialogs ──────────────────────────────────────────────────────── */}
@@ -175,12 +167,6 @@ export default function IngredientPriceApprovalModule() {
                 onOpenChange={setIsApproveDialogOpen}
                 request={selectedRequest}
                 onApprove={handleApprove}
-            />
-
-            <RejectConfirmDialog
-                open={isRejectDialogOpen}
-                onOpenChange={setIsRejectDialogOpen}
-                request={selectedRequest}
                 onReject={handleReject}
             />
         </div>
