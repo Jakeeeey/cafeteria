@@ -6,10 +6,16 @@ import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select"
 
 import PriceApprovalTable from "./components/PriceApprovalTable"
 import ApproveDialog from "./components/ApproveDialog"
-import RejectConfirmDialog from "./components/RejectConfirmDialog"
 import { fetchPriceRequests, approveRequest, rejectRequest } from "./providers/fetchProvider"
 import type { PriceRequest, ApproveValues, RejectValues } from "./types"
 
@@ -17,10 +23,10 @@ export default function IngredientPriceApprovalModule() {
     const [requests, setRequests] = React.useState<PriceRequest[]>([])
     const [isLoading, setIsLoading] = React.useState(true)
     const [search, setSearch] = React.useState("")
+    const [supplierFilter, setSupplierFilter] = React.useState("all")
 
     const [selectedRequest, setSelectedRequest] = React.useState<PriceRequest | null>(null)
     const [isApproveDialogOpen, setIsApproveDialogOpen] = React.useState(false)
-    const [isRejectDialogOpen, setIsRejectDialogOpen] = React.useState(false)
 
     const loadRequests = React.useCallback(async () => {
         setIsLoading(true)
@@ -38,14 +44,9 @@ export default function IngredientPriceApprovalModule() {
         loadRequests()
     }, [loadRequests])
 
-    function handleOpenApprove(request: PriceRequest) {
+    function handleOpenView(request: PriceRequest) {
         setSelectedRequest(request)
         setIsApproveDialogOpen(true)
-    }
-
-    function handleOpenReject(request: PriceRequest) {
-        setSelectedRequest(request)
-        setIsRejectDialogOpen(true)
     }
 
     async function handleApprove(values: ApproveValues) {
@@ -62,20 +63,31 @@ export default function IngredientPriceApprovalModule() {
 
     const filteredRequests = React.useMemo(() => {
         const q = search.trim().toLowerCase()
-        if (!q) return requests
-        return requests.filter(
-            (r) =>
+        return requests.filter((r) => {
+            if (supplierFilter !== "all" && (r.supplier_name ?? "") !== supplierFilter) return false
+            if (!q) return true
+            return (
                 r.ingredient_name.toLowerCase().includes(q) ||
+                (r.supplier_name ?? "").toLowerCase().includes(q) ||
                 (r.unit_name ?? "").toLowerCase().includes(q) ||
-                (r.request_reason ?? "").toLowerCase().includes(q)
-        )
-    }, [requests, search])
+                (r.request_reason ?? "").toLowerCase().includes(q) ||
+                (r.requested_by_name ?? "").toLowerCase().includes(q)
+            )
+        })
+    }, [requests, search, supplierFilter])
+
+    const supplierOptions = React.useMemo(() => {
+        const names = Array.from(
+            new Set(requests.map((r) => r.supplier_name).filter(Boolean) as string[])
+        ).sort()
+        return names
+    }, [requests])
 
     async function handleReject(values: RejectValues) {
         try {
             await rejectRequest(values)
             toast.success("Price change request rejected.")
-            setIsRejectDialogOpen(false)
+            setIsApproveDialogOpen(false)
             await loadRequests()
         } catch (error: any) {
             toast.error(error?.message ?? "Failed to reject request.")
@@ -109,18 +121,35 @@ export default function IngredientPriceApprovalModule() {
                 </div>
             </div>
 
-            {/* ─ Search ───────────────────────────────────────────────────────── */}
+            {/* ─ Search / Filters ─────────────────────────────────────────────── */}
             <div className="flex flex-wrap items-center gap-2">
                 <Input
                     className="h-9 w-64"
-                    placeholder="Search by ingredient, unit, reason…"
+                    placeholder="Search ingredient, supplier, reason…"
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                 />
-                {search.trim() !== "" && (
-                    <Button variant="ghost" size="sm" onClick={() => setSearch("")}>
+                <Select value={supplierFilter} onValueChange={setSupplierFilter}>
+                    <SelectTrigger className="h-9 w-48">
+                        <SelectValue placeholder="All Suppliers" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="all">All Suppliers</SelectItem>
+                        {supplierOptions.map((name) => (
+                            <SelectItem key={name} value={name}>
+                                {name}
+                            </SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+                {(search.trim() !== "" || supplierFilter !== "all") && (
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => { setSearch(""); setSupplierFilter("all") }}
+                    >
                         <XIcon className="size-3.5 mr-1" />
-                        Clear
+                        Clear filters
                     </Button>
                 )}
             </div>
@@ -129,8 +158,7 @@ export default function IngredientPriceApprovalModule() {
             <PriceApprovalTable
                 requests={filteredRequests}
                 isLoading={isLoading}
-                onApprove={handleOpenApprove}
-                onReject={handleOpenReject}
+                onView={handleOpenView}
             />
 
             {/* ─ Dialogs ──────────────────────────────────────────────────────── */}
@@ -139,12 +167,6 @@ export default function IngredientPriceApprovalModule() {
                 onOpenChange={setIsApproveDialogOpen}
                 request={selectedRequest}
                 onApprove={handleApprove}
-            />
-
-            <RejectConfirmDialog
-                open={isRejectDialogOpen}
-                onOpenChange={setIsRejectDialogOpen}
-                request={selectedRequest}
                 onReject={handleReject}
             />
         </div>

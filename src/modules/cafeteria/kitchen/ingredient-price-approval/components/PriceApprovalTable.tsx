@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState } from "react"
-import { Check, X } from "lucide-react"
+import { Eye } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -21,15 +21,28 @@ const ITEMS_PER_PAGE = 10
 interface PriceApprovalTableProps {
     requests: PriceRequest[]
     isLoading: boolean
-    onApprove: (request: PriceRequest) => void
-    onReject: (request: PriceRequest) => void
+    onView: (request: PriceRequest) => void
+}
+
+function formatDate(dateStr: string | null | undefined): string {
+    if (!dateStr) return "—"
+    try {
+        return new Intl.DateTimeFormat("en-PH", {
+            year: "numeric",
+            month: "short",
+            day: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+        }).format(new Date(dateStr))
+    } catch {
+        return dateStr
+    }
 }
 
 export default function PriceApprovalTable({
     requests,
     isLoading,
-    onApprove,
-    onReject,
+    onView,
 }: PriceApprovalTableProps) {
     const [currentPage, setCurrentPage] = useState(1)
 
@@ -47,62 +60,66 @@ export default function PriceApprovalTable({
 
     return (
         <div className="flex flex-col gap-4">
-            <div className="rounded-md border">
+            <div className="rounded-md border overflow-x-auto">
                 <Table>
                     <TableHeader>
                         <TableRow>
                             <TableHead>Ingredient Name</TableHead>
-                            <TableHead>Unit</TableHead>
-                            <TableHead>Quantity</TableHead>
-                            <TableHead>Old Price</TableHead>
-                            <TableHead>New Price</TableHead>
-                            <TableHead className="w-[180px]">Actions</TableHead>
+                            <TableHead>Supplier</TableHead>
+                            <TableHead>Unit of Measurement</TableHead>
+                            <TableHead className="text-right">Current Price</TableHead>
+                            <TableHead className="text-right">New Price Request</TableHead>
+                            <TableHead>Date</TableHead>
+                            <TableHead className="w-[80px]">Actions</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
                         {isLoading ? (
                             Array.from({ length: 5 }).map((_, index) => (
                                 <TableRow key={`skeleton-${index}`}>
-                                    <TableCell><Skeleton className="h-4 w-3/4" /></TableCell>
-                                    <TableCell><Skeleton className="h-4 w-1/2" /></TableCell>
-                                    <TableCell><Skeleton className="h-4 w-1/2" /></TableCell>
-                                    <TableCell><Skeleton className="h-4 w-1/2" /></TableCell>
-                                    <TableCell><Skeleton className="h-4 w-1/2" /></TableCell>
-                                    <TableCell><Skeleton className="h-8 w-[160px]" /></TableCell>
+                                    {Array.from({ length: 7 }).map((__, ci) => (
+                                        <TableCell key={ci}><Skeleton className="h-4 w-full" /></TableCell>
+                                    ))}
                                 </TableRow>
                             ))
                         ) : currentRequests.length > 0 ? (
-                            currentRequests.map((request) => (
-                                <TableRow key={request.id}>
-                                    <TableCell className="font-medium">{request.ingredient_name}</TableCell>
-                                    <TableCell>{request.unit_abbreviation ?? request.unit_name ?? "N/A"}</TableCell>
-                                    <TableCell>{request.unit_count != null ? Number(request.unit_count).toFixed(2) : "0.00"}</TableCell>
-                                    <TableCell>₱{Number(request.old_cost).toFixed(2)}</TableCell>
-                                    <TableCell>₱{Number(request.new_cost).toFixed(2)}</TableCell>
-                                    <TableCell>
-                                        <div className="flex items-center gap-2">
+                            currentRequests.map((request) => {
+                                return (
+                                    <TableRow key={request.id}>
+                                        <TableCell className="font-medium whitespace-nowrap py-3">
+                                            {request.ingredient_name}
+                                        </TableCell>
+                                        <TableCell className="whitespace-nowrap py-3">
+                                            {request.supplier_name ?? <span className="text-muted-foreground">—</span>}
+                                        </TableCell>
+                                        <TableCell className="whitespace-nowrap py-3">
+                                            {request.unit_abbreviation ?? request.unit_name ?? "—"}
+                                        </TableCell>
+                                        <TableCell className="text-right whitespace-nowrap py-3">
+                                            ₱{Number(request.old_cost).toFixed(2)}
+                                        </TableCell>
+                                        <TableCell className="text-right whitespace-nowrap font-medium py-3">
+                                            ₱{Number(request.new_cost).toFixed(2)}
+                                        </TableCell>
+                                        <TableCell className="whitespace-nowrap text-sm text-muted-foreground py-3">
+                                            {formatDate(request.requested_at)}
+                                        </TableCell>
+                                        <TableCell className="py-3">
                                             <Button
                                                 size="sm"
-                                                onClick={() => onApprove(request)}
+                                                onClick={() => onView(request)}
+                                                title="View Details"
                                             >
-                                                <Check className="mr-1 h-4 w-4" />
-                                                Approve
+                                                <Eye className="mr-1 h-4 w-4" />View                                                                                     
+                                                <span className="sr-only">View</span>
                                             </Button>
-                                            <Button
-                                                variant="destructive"
-                                                size="sm"
-                                                onClick={() => onReject(request)}
-                                            >
-                                                <X className="mr-1 h-4 w-4" />
-                                                Reject
-                                            </Button>
-                                        </div>
-                                    </TableCell>
-                                </TableRow>
-                            ))
+                                        </TableCell>
+                                    </TableRow>
+                                )
+                            })
                         ) : (
                             <TableRow>
-                                <TableCell colSpan={6} className="h-24 text-center">
+                                <TableCell colSpan={7} className="h-24 text-center">
                                     No pending price requests found.
                                 </TableCell>
                             </TableRow>

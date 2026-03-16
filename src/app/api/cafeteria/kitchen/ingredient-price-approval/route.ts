@@ -105,11 +105,18 @@ async function resolveUserId(req: NextRequest, base: string, headers: Record<str
 function normalizeRequest(raw: any): any {
     const ing = typeof raw.ingredient_id === "object" ? raw.ingredient_id : null;
     const unit = ing && typeof ing.unit_of_measurement === "object" ? ing.unit_of_measurement : null;
+    const supplier = ing && typeof ing.supplier === "object" ? ing.supplier : null;
+    const requester = typeof raw.requested_by === "object" ? raw.requested_by : null;
+
+    const rFirstName = requester?.user_fname ?? "";
+    const rLastName = requester?.user_lname ?? "";
+    const requested_by_name = [rFirstName, rLastName].filter(Boolean).join(" ") || requester?.user_email || null;
 
     return {
         id: raw.id,
         ingredient_id: ing?.id ?? raw.ingredient_id,
         ingredient_name: ing?.name ?? "Unknown",
+        supplier_name: supplier?.supplier_name ?? supplier?.name ?? null,
         unit_name: unit?.unit_name ?? unit?.name ?? null,
         unit_abbreviation: unit?.abbreviation ?? null,
         unit_count: ing?.unit_count != null ? Number(ing.unit_count) : 0,
@@ -117,7 +124,8 @@ function normalizeRequest(raw: any): any {
         new_cost: Number(raw.new_cost ?? 0),
         request_reason: raw.request_reason ?? null,
         status: raw.status ?? "pending",
-        requested_by: raw.requested_by,
+        requested_by: requester?.user_id ?? raw.requested_by,
+        requested_by_name,
         requested_at: raw.requested_at,
         processed_by: raw.processed_by ?? null,
         processed_at: raw.processed_at ?? null,
@@ -132,7 +140,7 @@ export async function GET(req: NextRequest) {
         const base = baseUrl();
 
         const upstream = await proxyFetch(
-            `${base}/items/ingredient_price_requests?fields=*,ingredient_id.*,ingredient_id.unit_of_measurement.*&filter[status][_eq]=pending&sort=-requested_at`,
+            `${base}/items/ingredient_price_requests?fields=*,ingredient_id.*,ingredient_id.unit_of_measurement.*,ingredient_id.supplier.*,requested_by.*&filter[status][_eq]=pending&sort=-requested_at`,
             { method: "GET", headers }
         );
         const data = await parseJson(upstream);
@@ -230,7 +238,7 @@ export async function PATCH(req: NextRequest) {
             );
         }
 
-        // 3. If approved, update the ingredient's cost_per_unit
+        // 3. If approved, update the ingredient's cost_per_unit and recalculate pending PO items
         if (action === "approved") {
             const ingredientId = typeof existingRequest.ingredient_id === "object"
                 ? existingRequest.ingredient_id?.id
@@ -239,6 +247,7 @@ export async function PATCH(req: NextRequest) {
             const newCost = Number(existingRequest.new_cost ?? 0);
 
             if (ingredientId) {
+                // 3a. Update the ingredient's cost_per_unit
                 const ingPatchRes = await proxyFetch(
                     `${base}/items/ingredients/${ingredientId}`,
                     {
@@ -251,11 +260,54 @@ export async function PATCH(req: NextRequest) {
                 if (!ingPatchRes.ok) {
                     const ingData = await parseJson(ingPatchRes);
                     console.error("[ingredient-price-approval PATCH] Ingredient cost update failed", ingPatchRes.status, ingData);
-                    // Return warning but don't block – the request is already marked as approved
                     return NextResponse.json(
                         { message: "Request approved but failed to update ingredient cost. Please update manually." },
                         { status: 207 }
                     );
+                }
+
+                // 3b. Find all Pending PO items that use this ingredient and recalculate their estimated_cost
+                const poItemsRes = await proxyFetch(
+                    `${base}/items/meal_purchase_order_items?fields=id,purchase_order_id,required_quantity&filter[ingredient_id][_eq]=${ingredientId}&filter[deleted_at][_null]=true&filter[purchase_order_id][status][_eq]=Pending&limit=-1`,
+                    { method: "GET", headers }
+                );
+
+                if (poItemsRes.ok) {
+                    const poItemsData = await parseJson(poItemsRes);
+                    const poItems: any[] = Array.isArray(poItemsData) ? poItemsData : (poItemsData?.data ?? poItemsData?.content ?? []);
+
+                    const affectedPOIds = new Set<number>();
+
+                    for (const item of poItems) {
+                        const poId = typeof item.purchase_order_id === "object"
+                            ? Number(item.purchase_order_id?.id)
+                            : Number(item.purchase_order_id);
+                        const newEstimatedCost = newCost * Number(item.required_quantity ?? 0);
+
+                        await proxyFetch(
+                            `${base}/items/meal_purchase_order_items/${item.id}`,
+                            { method: "PATCH", headers, body: JSON.stringify({ estimated_cost: newEstimatedCost.toFixed(4) }) }
+                        );
+
+                        if (poId) affectedPOIds.add(poId);
+                    }
+
+                    // 3c. Recalculate total_estimated_cost for each affected PO
+                    for (const poId of affectedPOIds) {
+                        const allItemsRes = await proxyFetch(
+                            `${base}/items/meal_purchase_order_items?fields=estimated_cost&filter[purchase_order_id][_eq]=${poId}&filter[deleted_at][_null]=true&limit=-1`,
+                            { method: "GET", headers }
+                        );
+                        if (allItemsRes.ok) {
+                            const allItemsData = await parseJson(allItemsRes);
+                            const allItems: any[] = Array.isArray(allItemsData) ? allItemsData : (allItemsData?.data ?? allItemsData?.content ?? []);
+                            const newTotal = allItems.reduce((sum: number, i: any) => sum + Number(i.estimated_cost ?? 0), 0);
+                            await proxyFetch(
+                                `${base}/items/meal_purchase_orders/${poId}`,
+                                { method: "PATCH", headers, body: JSON.stringify({ total_estimated_cost: newTotal.toFixed(4) }) }
+                            );
+                        }
+                    }
                 }
             }
         }

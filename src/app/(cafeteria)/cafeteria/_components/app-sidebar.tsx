@@ -33,6 +33,22 @@ import {
 const data = {
     navMain: [
         { title: "Dashboard", url: "/cafeteria/", icon: LayoutDashboard },
+         {
+            title: "File Management",
+            url: "#",
+            icon: Landmark,
+            items: 
+            [
+                { 
+                    title: "Brand Registration", 
+                    url: "/cafeteria/file-management/brand-registration", 
+                },
+                 { 
+                    title: "Category Registration", 
+                    url: "/cafeteria/file-management/category-registration", 
+                },
+            ],
+        },
         {
             title: "Kitchen (Admin)",
             url: "#",
@@ -62,10 +78,6 @@ const data = {
                 { 
                     title: "Meal Schedule Registration", 
                     url: "/cafeteria/kitchen/meal-schedule-registration", 
-                },
-                { 
-                    title: "Meal Purchase Order Requests", 
-                    url: "/cafeteria/kitchen/meal-purchase-order-request", 
                 },
                 { 
                     title: "Meal Purchase Order Approval", 

@@ -50,6 +50,18 @@ async function parseJson(res: Response): Promise<any> {
   }
 }
 
+// ─── Normalize Directus errors into user-friendly messages ───────────────────
+
+function friendlyError(data: any, fallback: string, name?: string): string {
+  const raw: string = data?.errors?.[0]?.message ?? data?.message ?? "";
+  if (/unique/i.test(raw)) {
+    return name
+      ? `name "${name}" is already in the Ingredient Registration.`
+      : "An ingredient with this name already exists.";
+  }
+  return raw || fallback;
+}
+
 // ─── Flatten Directus nested relations into the flat Ingredient shape ─────────
 // Directus returns FK relations as nested objects when you request ?fields=*,rel.*
 // e.g. brand_id: { brand_id: 1, brand_name: "Nestle" }
@@ -201,7 +213,7 @@ export async function POST(req: NextRequest) {
     if (!upstream.ok) {
       console.error("[ingredient-registration POST] Upstream error", upstream.status, data);
       return NextResponse.json(
-        { message: data?.errors?.[0]?.message ?? data?.message ?? "Failed to create ingredient." },
+        { message: friendlyError(data, "Failed to create ingredient.", body.name) },
         { status: upstream.status }
       );
     }
@@ -241,7 +253,7 @@ export async function PUT(req: NextRequest) {
     if (!upstream.ok) {
       console.error("[ingredient-registration PUT] Upstream error", upstream.status, data);
       return NextResponse.json(
-        { message: data?.errors?.[0]?.message ?? data?.message ?? "Failed to update ingredient." },
+        { message: friendlyError(data, "Failed to update ingredient.", payload.name) },
         { status: upstream.status }
       );
     }

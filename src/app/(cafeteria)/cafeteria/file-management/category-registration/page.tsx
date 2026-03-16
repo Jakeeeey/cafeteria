@@ -13,7 +13,7 @@ import { NavUser } from "../../_components/nav-user";
 import { cookies } from "next/headers";
 
 // ✅ Wire the module you asked for
-import MealPurchaseOrderApprovalModule from "@/modules/cafeteria/kitchen/meal-purchase-order-approval/MealPurchaseOrderApprovalModule";
+import CategoryRegistrationModule from "@/modules/cafeteria/file-management/category-registration/CategoryRegistrationModule";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -96,12 +96,12 @@ export default async function Page() {
                         <Breadcrumb>
                             <BreadcrumbList className="min-w-0 overflow-hidden">
                                 <BreadcrumbItem className="hidden md:block shrink-0">
-                                    <BreadcrumbLink href="#">Kitchen</BreadcrumbLink>
+                                    <BreadcrumbLink href="#">File Management</BreadcrumbLink>
                                 </BreadcrumbItem>
                                 <BreadcrumbSeparator className="hidden md:block shrink-0" />
                                 <BreadcrumbItem className="min-w-0 overflow-hidden">
                                     <BreadcrumbPage className="truncate max-w-[56vw] sm:max-w-[60vw] md:max-w-none">
-                                        Meal Purchase Order Approval
+                                        Category Management
                                     </BreadcrumbPage>
                                 </BreadcrumbItem>
                             </BreadcrumbList>
@@ -116,7 +116,7 @@ export default async function Page() {
 
             {/* ✅ Only content scrolls inside RIGHT column */}
             <main className="min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden p-2 sm:p-4">
-                <MealPurchaseOrderApprovalModule />
+                <CategoryRegistrationModule />
             </main>
         </div>
     );
