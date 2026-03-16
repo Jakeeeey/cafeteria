@@ -78,8 +78,24 @@ export default function IngredientPriceChangeFormDialog({
                     <form onSubmit={handleSubmit} className="grid gap-6 py-4">
                         <div className="rounded-lg bg-muted p-4 grid gap-3">
                             <div className="grid grid-cols-2 text-sm">
-                                <span className="text-muted-foreground">Ingredient:</span>
+                                <span className="text-muted-foreground">Name:</span>
                                 <span className="font-medium">{ingredient.name}</span>
+                            </div>
+                            <div className="grid grid-cols-2 text-sm">
+                                <span className="text-muted-foreground">Description:</span>
+                                <span className="font-medium">{ingredient.description || "—"}</span>
+                            </div>
+                            <div className="grid grid-cols-2 text-sm">
+                                <span className="text-muted-foreground">Supplier:</span>
+                                <span className="font-medium">{ingredient.supplier_name || "—"}</span>
+                            </div>
+                            <div className="grid grid-cols-2 text-sm">
+                                <span className="text-muted-foreground">Brand:</span>
+                                <span className="font-medium">{ingredient.brand_name || "—"}</span>
+                            </div>
+                            <div className="grid grid-cols-2 text-sm">
+                                <span className="text-muted-foreground">Category:</span>
+                                <span className="font-medium">{ingredient.category_name || "—"}</span>
                             </div>
                             <div className="grid grid-cols-2 text-sm">
                                 <span className="text-muted-foreground">Quantity:</span>
@@ -90,7 +106,7 @@ export default function IngredientPriceChangeFormDialog({
                             <div className="grid grid-cols-2 text-sm">
                                 <span className="text-muted-foreground">Unit:</span>
                                 <span className="font-medium">
-                                    {ingredient.unit_abbreviation ?? ingredient.unit_name ?? "N/A"}
+                                    {ingredient.unit_name || "N/A"}
                                 </span>
                             </div>
                             <div className="grid grid-cols-2 text-sm">

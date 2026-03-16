@@ -49,35 +49,55 @@ export default function IngredientPriceChangeTable({
                 <Table>
                     <TableHeader>
                         <TableRow>
-                            <TableHead>Ingredient Name</TableHead>
+                            <TableHead>Name</TableHead>
+                            <TableHead>Description</TableHead>
+                            <TableHead>Supplier</TableHead>
+                            <TableHead>Brand</TableHead>
+                            <TableHead>Category</TableHead>
                             <TableHead>Unit</TableHead>
-                            <TableHead>Quantity</TableHead>
-                            <TableHead>Cost Per Unit</TableHead>
-                            <TableHead className="w-[200px]">Actions</TableHead>
+                            <TableHead className="text-right">Cost per Unit</TableHead>
+                            <TableHead className="w-[150px]">Action</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
                         {isLoading ? (
                             Array.from({ length: 5 }).map((_, index) => (
                                 <TableRow key={`skeleton-${index}`}>
-                                    <TableCell><Skeleton className="h-4 w-3/4" /></TableCell>
-                                    <TableCell><Skeleton className="h-4 w-1/2" /></TableCell>
-                                    <TableCell><Skeleton className="h-4 w-1/2" /></TableCell>
-                                    <TableCell><Skeleton className="h-4 w-1/2" /></TableCell>
-                                    <TableCell><Skeleton className="h-8 w-[160px]" /></TableCell>
+                                    <TableCell><Skeleton className="h-4 w-20" /></TableCell>
+                                    <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                                    <TableCell><Skeleton className="h-4 w-20" /></TableCell>
+                                    <TableCell><Skeleton className="h-4 w-16" /></TableCell>
+                                    <TableCell><Skeleton className="h-4 w-16" /></TableCell>
+                                    <TableCell><Skeleton className="h-4 w-16" /></TableCell>
+                                    <TableCell><Skeleton className="h-4 w-16" /></TableCell>
+                                    <TableCell><Skeleton className="h-8 w-[120px]" /></TableCell>
                                 </TableRow>
                             ))
                         ) : currentIngredients.length > 0 ? (
                             currentIngredients.map((ingredient) => (
                                 <TableRow key={ingredient.id}>
-                                    <TableCell className="font-medium">{ingredient.name}</TableCell>
-                                    <TableCell>{ingredient.unit_abbreviation ?? ingredient.unit_name ?? "N/A"}</TableCell>
-                                    <TableCell>{ingredient.unit_count != null ? Number(ingredient.unit_count).toFixed(2) : "0.00"}</TableCell>
-                                    <TableCell>₱{ingredient.cost_per_unit != null ? Number(ingredient.cost_per_unit).toFixed(2) : "0.00"}</TableCell>
+                                    <TableCell className="font-medium whitespace-nowrap">{ingredient.name}</TableCell>
+                                    <TableCell className="max-w-[150px] truncate" title={ingredient.description ?? ""}>
+                                        {ingredient.description || "—"}
+                                    </TableCell>
+                                    <TableCell className="max-w-[120px] truncate" title={ingredient.supplier_name ?? ""}>
+                                        {ingredient.supplier_name || "—"}
+                                    </TableCell>
+                                    <TableCell className="max-w-[100px] truncate" title={ingredient.brand_name ?? ""}>
+                                        {ingredient.brand_name || "—"}
+                                    </TableCell>
+                                    <TableCell className="max-w-[100px] truncate" title={ingredient.category_name ?? ""}>
+                                        {ingredient.category_name || "—"}
+                                    </TableCell>
+                                    <TableCell>{ingredient.unit_name || "—"}</TableCell>
+                                    <TableCell className="whitespace-nowrap text-right">
+                                        ₱{ingredient.cost_per_unit != null ? Number(ingredient.cost_per_unit).toFixed(2) : "0.00"}
+                                    </TableCell>
                                     <TableCell>
                                         <Button
                                             size="sm"
                                             onClick={() => onRequestChange(ingredient)}
+                                            className="whitespace-nowrap"
                                         >
                                             <ArrowRightLeft className="mr-2 h-4 w-4" />
                                             Request Price Change
@@ -87,7 +107,7 @@ export default function IngredientPriceChangeTable({
                             ))
                         ) : (
                             <TableRow>
-                                <TableCell colSpan={5} className="h-24 text-center">
+                                <TableCell colSpan={8} className="h-24 text-center">
                                     No ingredients found.
                                 </TableCell>
                             </TableRow>
