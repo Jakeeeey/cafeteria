@@ -36,11 +36,13 @@ export interface Ingredient {
   cost_per_unit: number;
   supplier: number | null;
   supplier_name?: string | null;
+  is_active: number;
+  shelf_life: number | null;
   created_at?: string;
   updated_at?: string | null;
 }
 
-// ─── Form values (no price – price has its own module) ────────────────────────
+// ─── Form values ──────────────────────────────────────────────────────────────
 export interface IngredientFormValues {
   name: string;
   description: string;
@@ -48,7 +50,10 @@ export interface IngredientFormValues {
   category_id: number | null;
   unit_of_measurement: number | null;
   unit_count: number;
+  cost_per_unit: number;
   supplier: number | null;
+  is_active: number;
+  shelf_life: number | null;
 }
 
 // ─── Generic select option ────────────────────────────────────────────────────
