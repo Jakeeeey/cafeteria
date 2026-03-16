@@ -86,6 +86,8 @@ function normalizeIngredient(raw: any): any {
     cost_per_unit:       Number(raw.cost_per_unit ?? 0),
     supplier:            supplier?.id ?? (typeof raw.supplier === "number" ? raw.supplier : null),
     supplier_name:       supplier?.supplier_name ?? supplier?.name ?? null,
+    is_active:           raw.is_active ?? 1,
+    shelf_life:          raw.shelf_life ?? null,
     created_at:          raw.created_at,
     updated_at:          raw.updated_at,
   };

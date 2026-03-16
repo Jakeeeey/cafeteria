@@ -294,6 +294,7 @@ export default function IngredientRegistrationModule() {
         editTarget={editTarget}
         options={options}
         optionsLoading={optionsLoading}
+        existingIngredients={ingredients}
         onSubmit={handleFormSubmit}
       />
 
