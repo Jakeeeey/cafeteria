@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dialog"
 
 import type { PriceRequest, ApproveValues, RejectValues } from "../types"
+import RejectConfirmDialog from "./RejectConfirmDialog"
 
 function formatDate(dateStr: string | null | undefined): string {
     if (!dateStr) return "—"
@@ -47,9 +48,13 @@ export default function ApproveDialog({
 }: ApproveDialogProps) {
     const [notes, setNotes] = useState("")
     const [isSubmitting, setIsSubmitting] = useState(false)
+    const [rejectConfirmOpen, setRejectConfirmOpen] = useState(false)
 
     React.useEffect(() => {
-        if (open) setNotes("")
+        if (open) {
+            setNotes("")
+            setRejectConfirmOpen(false)
+        }
     }, [open, request])
 
     const handleApprove = async () => {
@@ -63,21 +68,13 @@ export default function ApproveDialog({
         }
     }
 
-    const handleReject = async () => {
+    const handleReject = () => {
         if (!request) return
-        
-        // Optional: Add simple confirmation if desired, but user asked for replacement
-        // if (!window.confirm("Are you sure you want to reject this request?")) return;
-
-        setIsSubmitting(true)
-        try {
-            await onReject({ id: request.id })
-        } finally {
-            setIsSubmitting(false)
-        }
+        setRejectConfirmOpen(true)
     }
 
     return (
+        <>
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="sm:max-w-[500px]">
                 <DialogHeader>
@@ -182,5 +179,13 @@ export default function ApproveDialog({
                 )}
             </DialogContent>
         </Dialog>
+
+        <RejectConfirmDialog
+            open={rejectConfirmOpen}
+            onOpenChange={setRejectConfirmOpen}
+            request={request}
+            onReject={onReject}
+        />
+        </>
     )
 }

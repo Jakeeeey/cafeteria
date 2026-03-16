@@ -16,6 +16,7 @@ import {
 
 import IngredientTable from "./components/IngredientTable";
 import IngredientFormDialog from "./components/IngredientFormDialog";
+import IngredientViewDialog from "./components/IngredientViewDialog";
 import {
   fetchIngredients,
   fetchOptions,
@@ -50,6 +51,10 @@ export default function IngredientRegistrationModule() {
   // ─ Dialog state ────────────────────────────────────────────────────────
   const [dialogOpen, setDialogOpen] = React.useState(false);
   const [editTarget, setEditTarget] = React.useState<Ingredient | null>(null);
+
+  // ─ View dialog state ───────────────────────────────────────────────────
+  const [viewOpen, setViewOpen] = React.useState(false);
+  const [viewTarget, setViewTarget] = React.useState<Ingredient | null>(null);
 
   // ─ Search + filter state ──────────────────────────────────────────────
   const [search, setSearch] = React.useState("");
@@ -98,6 +103,11 @@ export default function IngredientRegistrationModule() {
   function openEditDialog(ingredient: Ingredient) {
     setEditTarget(ingredient);
     setDialogOpen(true);
+  }
+
+  function openViewDialog(ingredient: Ingredient) {
+    setViewTarget(ingredient);
+    setViewOpen(true);
   }
 
   // ─── Form submit handler ──────────────────────────────────────────────────
@@ -274,6 +284,7 @@ export default function IngredientRegistrationModule() {
         ingredients={filtered}
         isLoading={listLoading}
         onEdit={openEditDialog}
+        onView={openViewDialog}
       />
 
       {/* ─ Add / Edit dialog ───────────────────────────────────────────────── */}
@@ -284,6 +295,13 @@ export default function IngredientRegistrationModule() {
         options={options}
         optionsLoading={optionsLoading}
         onSubmit={handleFormSubmit}
+      />
+
+      {/* ─ View dialog ──────────────────────────────────────────────────────── */}
+      <IngredientViewDialog
+        open={viewOpen}
+        onOpenChange={setViewOpen}
+        ingredient={viewTarget}
       />
     </div>
   );
