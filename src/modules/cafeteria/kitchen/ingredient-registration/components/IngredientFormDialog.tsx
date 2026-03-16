@@ -47,7 +47,10 @@ const schema = z.object({
   category_id: z.number().nullable(),
   unit_of_measurement: z.number({ message: "Unit of measurement is required" }),
   unit_count: z.number().positive("Unit count must be greater than 0"),
+  cost_per_unit: z.number().positive("Cost per unit must be greater than 0"),
   supplier: z.number().nullable(),
+  is_active: z.number(),
+  shelf_life: z.number().positive("Shelf life must be greater than 0").nullable(),
 });
 
 type FormSchema = z.infer<typeof schema>;
@@ -72,6 +75,7 @@ interface IngredientFormDialogProps {
   editTarget: Ingredient | null;
   options: IngredientOptions;
   optionsLoading: boolean;
+  existingIngredients: Ingredient[];
   onSubmit: (values: IngredientFormValues, id?: number) => Promise<void>;
 }
 
@@ -83,6 +87,7 @@ export default function IngredientFormDialog({
   editTarget,
   options,
   optionsLoading,
+  existingIngredients,
   onSubmit,
 }: IngredientFormDialogProps) {
   const isEdit = editTarget !== null;
@@ -96,11 +101,25 @@ export default function IngredientFormDialog({
       category_id: null,
       unit_of_measurement: undefined as unknown as number,
       unit_count: 1,
+      cost_per_unit: undefined as unknown as number,
       supplier: null,
+      is_active: 1,
+      shelf_life: null,
     },
   });
 
   const { isSubmitting } = form.formState;
+
+  // Custom validation for unique name
+  const validateUniqueName = (name: string): boolean => {
+    const trimmedName = name.trim().toLowerCase();
+    const isDuplicate = existingIngredients.some(
+      (ingredient) =>
+        ingredient.name.toLowerCase() === trimmedName &&
+        ingredient.id !== editTarget?.id
+    );
+    return !isDuplicate;
+  };
 
   // Populate form when editing
   React.useEffect(() => {
@@ -112,7 +131,10 @@ export default function IngredientFormDialog({
         category_id: editTarget.category_id ?? null,
         unit_of_measurement: editTarget.unit_of_measurement,
         unit_count: Number(editTarget.unit_count),
+        cost_per_unit: Number(editTarget.cost_per_unit),
         supplier: editTarget.supplier ?? null,
+        is_active: editTarget.is_active,
+        shelf_life: editTarget.shelf_life ?? null,
       });
     } else if (open && !editTarget) {
       form.reset({
@@ -122,12 +144,24 @@ export default function IngredientFormDialog({
         category_id: null,
         unit_of_measurement: undefined as unknown as number,
         unit_count: 1,
+        cost_per_unit: undefined as unknown as number,
         supplier: null,
+        is_active: 1,
+        shelf_life: null,
       });
     }
   }, [open, editTarget, form]);
 
   const handleSubmit = form.handleSubmit(async (values) => {
+    // Validate unique name before submission
+    if (!validateUniqueName(values.name)) {
+      form.setError("name", {
+        type: "manual",
+        message: "An ingredient with this name already exists.",
+      });
+      return;
+    }
+
     await onSubmit(
       {
         name: values.name,
@@ -136,7 +170,10 @@ export default function IngredientFormDialog({
         category_id: values.category_id,
         unit_of_measurement: values.unit_of_measurement,
         unit_count: values.unit_count,
+        cost_per_unit: values.cost_per_unit,
         supplier: values.supplier,
+        is_active: values.is_active,
+        shelf_life: values.shelf_life,
       },
       editTarget?.id
     );
@@ -163,7 +200,22 @@ export default function IngredientFormDialog({
                     Name <span className="text-destructive">*</span>
                   </FormLabel>
                   <FormControl>
-                    <Input placeholder="e.g. All-Purpose Flour" {...field} />
+                    <Input
+                      placeholder="e.g. All-Purpose Flour"
+                      {...field}
+                      onBlur={(e) => {
+                        field.onBlur();
+                        const value = e.target.value;
+                        if (value && !validateUniqueName(value)) {
+                          form.setError("name", {
+                            type: "manual",
+                            message: "An ingredient with this name already exists.",
+                          });
+                        } else {
+                          form.clearErrors("name");
+                        }
+                      }}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -310,6 +362,87 @@ export default function IngredientFormDialog({
                         placeholder="1"
                         {...field}
                         onChange={(e) => field.onChange(e.target.valueAsNumber)}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            {/* Cost per Unit */}
+            <FormField
+              control={form.control}
+              name="cost_per_unit"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>
+                    Cost per Unit <span className="text-destructive">*</span>
+                  </FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      min="0.01"
+                      step="0.01"
+                      placeholder="0.00"
+                      {...field}
+                      onChange={(e) => field.onChange(e.target.valueAsNumber)}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* Status + Shelf Life (side by side) */}
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              {/* Status (Active/Inactive) */}
+              <FormField
+                control={form.control}
+                name="is_active"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>
+                      Status <span className="text-destructive">*</span>
+                    </FormLabel>
+                    <Select
+                      value={String(field.value)}
+                      onValueChange={(v) => field.onChange(Number(v))}
+                    >
+                      <FormControl>
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Select status…" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="1">Active</SelectItem>
+                        <SelectItem value="0">Inactive</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* Shelf Life */}
+              <FormField
+                control={form.control}
+                name="shelf_life"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Shelf Life (days)</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        min="1"
+                        step="1"
+                        placeholder="e.g. 30"
+                        {...field}
+                        value={field.value ?? ""}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          field.onChange(val === "" ? null : Number(val));
+                        }}
                       />
                     </FormControl>
                     <FormMessage />

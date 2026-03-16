@@ -63,6 +63,8 @@ export default function IngredientTable({
             <TableHead className="text-right">Unit</TableHead>
             <TableHead className="text-right">Cost per Unit</TableHead>
             <TableHead className="hidden lg:table-cell text-right">Total Amount</TableHead>
+            <TableHead className="text-center">Status</TableHead>
+            <TableHead className="hidden lg:table-cell text-center">Shelf Life</TableHead>
             <TableHead className="w-24 text-center">Action</TableHead>
           </TableRow>
         </TableHeader>
@@ -70,7 +72,7 @@ export default function IngredientTable({
           {isLoading ? (
             Array.from({ length: 5 }).map((_, i) => (
               <TableRow key={i}>
-                {Array.from({ length: 11 }).map((__, j) => (
+                {Array.from({ length: 13 }).map((__, j) => (
                   <TableCell key={j}>
                     <Skeleton className="h-4 w-full" />
                   </TableCell>
@@ -80,7 +82,7 @@ export default function IngredientTable({
           ) : ingredients.length === 0 ? (
             <TableRow>
               <TableCell
-                colSpan={11}
+                colSpan={13}
                 className="h-32 text-center text-muted-foreground"
               >
                 No ingredients registered yet.
@@ -137,6 +139,20 @@ export default function IngredientTable({
                     minimumFractionDigits: 2,
                     maximumFractionDigits: 4,
                   })}
+                </TableCell>
+                <TableCell className="text-center">
+                  {row.is_active === 1 ? (
+                    <Badge variant="default" className="bg-green-600">Active</Badge>
+                  ) : (
+                    <Badge variant="secondary">Inactive</Badge>
+                  )}
+                </TableCell>
+                <TableCell className="hidden lg:table-cell text-center">
+                  {row.shelf_life != null ? (
+                    `${row.shelf_life} days`
+                  ) : (
+                    <span className="text-muted-foreground">—</span>
+                  )}
                 </TableCell>
                 <TableCell className="text-center">
                   <div className="flex items-center justify-center gap-1">
