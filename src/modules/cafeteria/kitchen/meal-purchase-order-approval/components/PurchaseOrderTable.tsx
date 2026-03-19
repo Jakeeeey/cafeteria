@@ -45,6 +45,19 @@ function formatDate(dateStr: string): string {
     return d.toLocaleDateString("en-PH", { year: "numeric", month: "short", day: "numeric" })
 }
 
+function formatDateRange(dateFrom: string, dateTo: string): string {
+    const from = new Date(dateFrom)
+    const to = new Date(dateTo)
+    const options: Intl.DateTimeFormatOptions = { month: "short", day: "numeric" }
+    const yearOptions: Intl.DateTimeFormatOptions = { year: "numeric" }
+
+    const startStr = from.toLocaleDateString("en-US", options)
+    const endStr = to.toLocaleDateString("en-US", options)
+    const yearStr = to.toLocaleDateString("en-US", yearOptions)
+
+    return `${startStr} – ${endStr}, ${yearStr}`
+}
+
 export default function PurchaseOrderTable({
     orders,
     isLoading,
@@ -66,8 +79,7 @@ export default function PurchaseOrderTable({
                     <TableHeader>
                         <TableRow>
                             <TableHead className="w-[80px]">PO #</TableHead>
-                            <TableHead>Date From</TableHead>
-                            <TableHead>Date To</TableHead>
+                            <TableHead>Date Range</TableHead>
                             <TableHead>Meals</TableHead>
                             <TableHead>Category</TableHead>
                             <TableHead>Total Estimated Cost</TableHead>
@@ -80,8 +92,7 @@ export default function PurchaseOrderTable({
                             Array.from({ length: 5 }).map((_, index) => (
                                 <TableRow key={`skeleton-${index}`}>
                                     <TableCell><Skeleton className="h-4 w-10" /></TableCell>
-                                    <TableCell><Skeleton className="h-4 w-28" /></TableCell>
-                                    <TableCell><Skeleton className="h-4 w-28" /></TableCell>
+                                    <TableCell><Skeleton className="h-4 w-44" /></TableCell>
                                     <TableCell><Skeleton className="h-4 w-40" /></TableCell>
                                     <TableCell><Skeleton className="h-4 w-28" /></TableCell>
                                     <TableCell><Skeleton className="h-4 w-32" /></TableCell>
@@ -93,8 +104,7 @@ export default function PurchaseOrderTable({
                             currentOrders.map((order) => (
                                 <TableRow key={order.id}>
                                     <TableCell className="font-medium">{order.id}</TableCell>
-                                    <TableCell>{formatDate(order.date_from)}</TableCell>
-                                    <TableCell>{formatDate(order.date_to)}</TableCell>
+                                    <TableCell>{formatDateRange(order.date_from, order.date_to)}</TableCell>
                                     <TableCell>
                                         {order.meal_names.length > 0
                                             ? order.meal_names.join(", ")
@@ -124,7 +134,7 @@ export default function PurchaseOrderTable({
                             ))
                         ) : (
                             <TableRow>
-                                <TableCell colSpan={8} className="h-24 text-center">
+                                <TableCell colSpan={7} className="h-24 text-center">
                                     No purchase orders found.
                                 </TableCell>
                             </TableRow>
