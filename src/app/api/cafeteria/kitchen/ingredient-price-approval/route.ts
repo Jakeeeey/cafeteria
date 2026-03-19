@@ -38,7 +38,7 @@ async function proxyFetch(url: string, init: RequestInit): Promise<Response> {
     }
 }
 
-async function parseJson(res: Response): Promise<any> {
+async function parseJson(res: Response): Promise<unknown> {
     const text = await res.text();
     try {
         return text ? JSON.parse(text) : null;
@@ -47,7 +47,7 @@ async function parseJson(res: Response): Promise<any> {
     }
 }
 
-function decodeJwtPayload(token: string): any | null {
+function decodeJwtPayload(token: string): Record<string, unknown> | null {
     try {
         const parts = token.split(".");
         if (parts.length < 2) return null;
@@ -61,10 +61,11 @@ function decodeJwtPayload(token: string): any | null {
     }
 }
 
-function pickString(obj: any, keys: string[]): string {
-    if (!obj) return "";
+function pickString(obj: unknown, keys: string[]): string {
+    if (!obj || typeof obj !== 'object') return "";
+    const record = obj as Record<string, unknown>;
     for (const k of keys) {
-        const v = obj[k];
+        const v = record[k];
         if (typeof v === "string" && v.trim()) return v.trim();
     }
     return "";
@@ -102,11 +103,11 @@ async function resolveUserId(req: NextRequest, base: string, headers: Record<str
 }
 
 // ─── Normalize a raw Directus ingredient_price_requests row ──────────────────
-function normalizeRequest(raw: any): any {
-    const ing = typeof raw.ingredient_id === "object" ? raw.ingredient_id : null;
-    const unit = ing && typeof ing.unit_of_measurement === "object" ? ing.unit_of_measurement : null;
-    const supplier = ing && typeof ing.supplier === "object" ? ing.supplier : null;
-    const requester = typeof raw.requested_by === "object" ? raw.requested_by : null;
+function normalizeRequest(raw: Record<string, unknown>): Record<string, unknown> {
+    const ing = typeof raw.ingredient_id === "object" ? raw.ingredient_id as Record<string, unknown> | null : null;
+    const unit = ing && typeof ing.unit_of_measurement === "object" ? ing.unit_of_measurement as Record<string, unknown> | null : null;
+    const supplier = ing && typeof ing.supplier === "object" ? ing.supplier as Record<string, unknown> | null : null;
+    const requester = typeof raw.requested_by === "object" ? raw.requested_by as Record<string, unknown> | null : null;
 
     const rFirstName = requester?.user_fname ?? "";
     const rLastName = requester?.user_lname ?? "";
@@ -134,7 +135,7 @@ function normalizeRequest(raw: any): any {
 }
 
 // ─── GET – list pending ingredient price requests ─────────────────────────────
-export async function GET(req: NextRequest) {
+export async function GET() {
     try {
         const headers = authHeaders();
         const base = baseUrl();

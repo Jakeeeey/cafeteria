@@ -33,8 +33,8 @@ export default function IngredientPriceApprovalModule() {
         try {
             const data = await fetchPriceRequests()
             setRequests(data)
-        } catch (error: any) {
-            toast.error(error?.message ?? "Failed to load price requests.")
+        } catch (error: unknown) {
+            toast.error(error instanceof Error ? error.message : "Failed to load price requests.")
         } finally {
             setIsLoading(false)
         }
@@ -55,8 +55,8 @@ export default function IngredientPriceApprovalModule() {
             toast.success("Price change request approved successfully.")
             setIsApproveDialogOpen(false)
             await loadRequests()
-        } catch (error: any) {
-            toast.error(error?.message ?? "Failed to approve request.")
+        } catch (error: unknown) {
+            toast.error(error instanceof Error ? error.message : "Failed to approve request.")
             throw error
         }
     }
@@ -89,8 +89,8 @@ export default function IngredientPriceApprovalModule() {
             toast.success("Price change request rejected.")
             setIsApproveDialogOpen(false)
             await loadRequests()
-        } catch (error: any) {
-            toast.error(error?.message ?? "Failed to reject request.")
+        } catch (error: unknown) {
+            toast.error(error instanceof Error ? error.message : "Failed to reject request.")
             throw error
         }
     }
