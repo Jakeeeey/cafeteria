@@ -40,11 +40,6 @@ function statusVariant(status: PurchaseOrder["status"]): "default" | "secondary"
     }
 }
 
-function formatDate(dateStr: string): string {
-    const d = new Date(dateStr)
-    return d.toLocaleDateString("en-PH", { year: "numeric", month: "short", day: "numeric" })
-}
-
 function formatDateRange(dateFrom: string, dateTo: string): string {
     const from = new Date(dateFrom)
     const to = new Date(dateTo)

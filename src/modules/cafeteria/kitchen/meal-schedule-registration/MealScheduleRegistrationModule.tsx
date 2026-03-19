@@ -102,8 +102,8 @@ export default function MealScheduleRegistrationModule() {
       const data = await fetchMeals();
       setMeals(data);
       setCategories(groupMealsByCategory(data));
-    } catch (err: any) {
-      toast.error(err?.message ?? "Failed to load meals.");
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Failed to load meals.");
     } finally {
       setMealsLoading(false);
     }
@@ -125,14 +125,14 @@ export default function MealScheduleRegistrationModule() {
   React.useEffect(() => {
     if (isFirstWeekRender.current) { isFirstWeekRender.current = false; return; }
     setSchedule(readStoredSchedule(toISODate(currentMonday)));
-  }, [currentMonday]); // eslint-disable-line
+  }, [currentMonday]);
 
   // ─── Save schedule to localStorage whenever it changes ───────────────────
   React.useEffect(() => {
     try {
       localStorage.setItem(scheduleStorageKey(currentIsoMondayRef.current), JSON.stringify(schedule));
     } catch { /* ignore */ }
-  }, [schedule]); // eslint-disable-line
+  }, [schedule]);
 
   // ─── Week navigation handlers ────────────────────────────────────────────
   function goToPrevWeek() {
@@ -258,8 +258,8 @@ export default function MealScheduleRegistrationModule() {
 
       // No conflicts, proceed to review
       setReviewOpen(true);
-    } catch (err: any) {
-      toast.error(err?.message ?? "Failed to check for existing purchase orders.");
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Failed to check for existing purchase orders.");
     } finally {
       setIsCheckingDuplicates(false);
     }
@@ -300,8 +300,8 @@ export default function MealScheduleRegistrationModule() {
 
       toast.success("Schedule submitted and purchase order created!");
       setReviewOpen(false);
-    } catch (err: any) {
-      toast.error(err?.message ?? "Failed to submit schedule.");
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Failed to submit schedule.");
     } finally {
       setIsSubmitting(false);
     }

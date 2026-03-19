@@ -5,7 +5,6 @@ import { FilterXIcon, RefreshCwIcon, ChevronLeftIcon, ChevronRightIcon } from "l
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { NativeSelect } from "@/components/ui/native-select"
 import { Separator } from "@/components/ui/separator"
 
@@ -106,8 +105,8 @@ export default function MealPurchaseOrderApprovalModule() {
         try {
             const data = await fetchPurchaseOrders()
             setOrders(data)
-        } catch (error: any) {
-            toast.error(error?.message ?? "Failed to load purchase orders.")
+        } catch (error: unknown) {
+            toast.error(error instanceof Error ? error.message : "Failed to load purchase orders.")
         } finally {
             setIsLoading(false)
         }
@@ -181,8 +180,8 @@ export default function MealPurchaseOrderApprovalModule() {
             ])
             setItems(itemData)
             setScheduleEntries(scheduleData)
-        } catch (error: any) {
-            toast.error(error?.message ?? "Failed to load purchase order details.")
+        } catch (error: unknown) {
+            toast.error(error instanceof Error ? error.message : "Failed to load purchase order details.")
         } finally {
             setIsLoadingItems(false)
             setIsLoadingSchedules(false)
@@ -195,8 +194,8 @@ export default function MealPurchaseOrderApprovalModule() {
             toast.success(`Purchase Order #${order.id} has been approved.`)
             setIsDetailOpen(false)
             await loadOrders()
-        } catch (error: any) {
-            toast.error(error?.message ?? "Failed to approve purchase order.")
+        } catch (error: unknown) {
+            toast.error(error instanceof Error ? error.message : "Failed to approve purchase order.")
             throw error
         }
     }
@@ -207,8 +206,8 @@ export default function MealPurchaseOrderApprovalModule() {
             toast.success(`Purchase Order #${order.id} has been rejected.`)
             setIsDetailOpen(false)
             await loadOrders()
-        } catch (error: any) {
-            toast.error(error?.message ?? "Failed to reject purchase order.")
+        } catch (error: unknown) {
+            toast.error(error instanceof Error ? error.message : "Failed to reject purchase order.")
             throw error
         }
     }

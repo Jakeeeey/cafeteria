@@ -16,7 +16,7 @@ export async function fetchMeals(): Promise<Meal[]> {
 
 // ─── Fetch existing schedules for a week ────────────────────────────────────
 
-export async function fetchWeekSchedules(weekStart: string): Promise<any[]> {
+export async function fetchWeekSchedules(weekStart: string): Promise<unknown[]> {
   const res = await fetch(`${BASE}?week=${weekStart}`, { cache: "no-store" });
   if (!res.ok) {
     const text = await res.text().catch(() => "");

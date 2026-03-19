@@ -108,7 +108,7 @@ export function buildSubmitPayload(
   schedule: WeeklySchedule,
   weekDates: Record<DayOfWeek, string>,
   userId: number,
-  createdBy: number | null
+  _createdBy: number | null
 ): {
   scheduleItems: ScheduleSubmitItem[];
   poItems: PoItem[];
