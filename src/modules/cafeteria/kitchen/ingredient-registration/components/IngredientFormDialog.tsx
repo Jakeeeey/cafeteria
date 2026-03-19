@@ -385,6 +385,7 @@ export default function IngredientFormDialog({
                       min="0.01"
                       step="0.01"
                       placeholder="0.00"
+                      disabled={isEdit}
                       {...field}
                       value={field.value || ""}
                       onChange={(e) => {
