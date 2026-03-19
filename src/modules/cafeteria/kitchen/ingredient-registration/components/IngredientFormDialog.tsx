@@ -16,7 +16,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -45,7 +44,7 @@ const schema = z.object({
   description: z.string().max(5000),
   brand_id: z.number().nullable(),
   category_id: z.number().nullable(),
-  unit_of_measurement: z.number({ message: "Unit of measurement is required" }),
+  unit_of_measurement: z.number().min(1, "Unit of measurement is required"),
   unit_count: z.number().positive("Unit count must be greater than 0"),
   cost_per_unit: z.number().positive("Cost per unit must be greater than 0"),
   supplier: z.number().nullable(),
@@ -99,9 +98,9 @@ export default function IngredientFormDialog({
       description: "",
       brand_id: null,
       category_id: null,
-      unit_of_measurement: undefined as unknown as number,
+      unit_of_measurement: 0,
       unit_count: 1,
-      cost_per_unit: undefined as unknown as number,
+      cost_per_unit: 0,
       supplier: null,
       is_active: 1,
       shelf_life: null,
@@ -142,9 +141,9 @@ export default function IngredientFormDialog({
         description: "",
         brand_id: null,
         category_id: null,
-        unit_of_measurement: undefined as unknown as number,
+        unit_of_measurement: 0,
         unit_count: 1,
-        cost_per_unit: undefined as unknown as number,
+        cost_per_unit: 0,
         supplier: null,
         is_active: 1,
         shelf_life: null,
@@ -385,8 +384,13 @@ export default function IngredientFormDialog({
                       min="0.01"
                       step="0.01"
                       placeholder="0.00"
+                      disabled={isEdit}
                       {...field}
-                      onChange={(e) => field.onChange(e.target.valueAsNumber)}
+                      value={field.value || ""}
+                      onChange={(e) => {
+                        const val = e.target.valueAsNumber;
+                        field.onChange(isNaN(val) ? 0 : val);
+                      }}
                     />
                   </FormControl>
                   <FormMessage />

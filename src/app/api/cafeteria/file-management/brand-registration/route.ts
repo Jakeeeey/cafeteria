@@ -38,7 +38,7 @@ async function proxyFetch(url: string, init: RequestInit): Promise<Response> {
   }
 }
 
-async function parseJson(res: Response): Promise<any> {
+async function parseJson(res: Response): Promise<unknown> {
   const text = await res.text();
   try {
     return text ? JSON.parse(text) : null;
@@ -47,13 +47,13 @@ async function parseJson(res: Response): Promise<any> {
   }
 }
 
-function toList(raw: any): any[] {
-  return Array.isArray(raw) ? raw : (raw?.data ?? raw?.content ?? []);
+function toList(raw: unknown): unknown[] {
+  return Array.isArray(raw) ? raw : ((raw as Record<string, unknown>)?.data ?? (raw as Record<string, unknown>)?.content ?? []);
 }
 
 // ─── Decode vos_access_token JWT to extract the current user ─────────────────
 
-function decodeJwtPayload(token: string): Record<string, any> | null {
+function decodeJwtPayload(token: string): Record<string, unknown> | null {
   try {
     const part = token.split(".")[1];
     if (!part) return null;
@@ -74,7 +74,7 @@ function pickUserId(req: NextRequest): string {
 }
 
 // ─── GET – list all brands ────────────────────────────────────────────────────
-export async function GET(_req: NextRequest) {
+export async function GET() {
   try {
     const headers = authHeaders();
     const base = baseUrl();
@@ -97,8 +97,8 @@ export async function GET(_req: NextRequest) {
       status: 200,
       headers: { "Cache-Control": "no-store" },
     });
-  } catch (err: any) {
-    console.error("[brand-registration GET]", err?.message);
+  } catch (err: unknown) {
+    console.error("[brand-registration GET]", err instanceof Error ? err.message : err);
     return NextResponse.json(
       { message: "Server error. Please contact Administrator." },
       { status: 500 }

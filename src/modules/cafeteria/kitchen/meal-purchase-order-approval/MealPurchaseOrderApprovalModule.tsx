@@ -1,11 +1,10 @@
 "use client"
 
 import * as React from "react"
-import { FilterXIcon, RefreshCwIcon } from "lucide-react"
+import { FilterXIcon, RefreshCwIcon, ChevronLeftIcon, ChevronRightIcon } from "lucide-react"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { NativeSelect } from "@/components/ui/native-select"
 import { Separator } from "@/components/ui/separator"
 
@@ -29,6 +28,44 @@ const STATUS_OPTIONS = [
     { label: "Cancelled", value: "Cancelled" },
 ] as const
 
+// Helper functions for date range
+function getMondayOfWeek(date: Date): Date {
+    const d = new Date(date)
+    const day = d.getDay()
+    const diff = d.getDate() - day + (day === 0 ? -6 : 1)
+    d.setDate(diff)
+    d.setHours(0, 0, 0, 0)
+    return d
+}
+
+function getSaturdayOfWeek(monday: Date): Date {
+    const saturday = new Date(monday)
+    saturday.setDate(monday.getDate() + 5)
+    return saturday
+}
+
+function shiftWeek(date: Date, weeks: number): Date {
+    const result = new Date(date)
+    result.setDate(result.getDate() + weeks * 7)
+    return result
+}
+
+function formatDateRange(monday: Date): string {
+    const saturday = getSaturdayOfWeek(monday)
+    const options: Intl.DateTimeFormatOptions = { month: "short", day: "numeric" }
+    const yearOptions: Intl.DateTimeFormatOptions = { year: "numeric" }
+
+    const startStr = monday.toLocaleDateString("en-US", options)
+    const endStr = saturday.toLocaleDateString("en-US", options)
+    const yearStr = saturday.toLocaleDateString("en-US", yearOptions)
+
+    return `${startStr} – ${endStr}, ${yearStr}`
+}
+
+function toISODate(date: Date): string {
+    return date.toISOString().split('T')[0]
+}
+
 export default function MealPurchaseOrderApprovalModule() {
     // ─── Data ─────────────────────────────────────────────────────────────────
     const [orders, setOrders] = React.useState<PurchaseOrder[]>([])
@@ -37,8 +74,22 @@ export default function MealPurchaseOrderApprovalModule() {
     // ─── Filters ──────────────────────────────────────────────────────────────
     const [search, setSearch] = React.useState("")
     const [statusFilter, setStatusFilter] = React.useState("")
-    const [dateFrom, setDateFrom] = React.useState("")
-    const [dateTo, setDateTo] = React.useState("")
+    const [currentMonday, setCurrentMonday] = React.useState<Date | null>(null)
+
+    const dateRange = React.useMemo(() =>
+        currentMonday ? formatDateRange(currentMonday) : null,
+        [currentMonday]
+    )
+
+    const dateFrom = React.useMemo(() =>
+        currentMonday ? toISODate(currentMonday) : "",
+        [currentMonday]
+    )
+
+    const dateTo = React.useMemo(() =>
+        currentMonday ? toISODate(getSaturdayOfWeek(currentMonday)) : "",
+        [currentMonday]
+    )
 
     // ─── Detail dialog ────────────────────────────────────────────────────────
     const [selectedOrder, setSelectedOrder] = React.useState<PurchaseOrder | null>(null)
@@ -54,8 +105,8 @@ export default function MealPurchaseOrderApprovalModule() {
         try {
             const data = await fetchPurchaseOrders()
             setOrders(data)
-        } catch (error: any) {
-            toast.error(error?.message ?? "Failed to load purchase orders.")
+        } catch (error: unknown) {
+            toast.error(error instanceof Error ? error.message : "Failed to load purchase orders.")
         } finally {
             setIsLoading(false)
         }
@@ -76,19 +127,42 @@ export default function MealPurchaseOrderApprovalModule() {
                 if (!match) return false
             }
             if (statusFilter && o.status !== statusFilter) return false
-            if (dateFrom && o.date_from < dateFrom) return false
-            if (dateTo && o.date_to > dateTo) return false
+
+            // Date range filter: show orders that overlap with the selected week
+            // An order overlaps if: order_end >= week_start AND order_start <= week_end
+            if (dateFrom && dateTo) {
+                if (o.date_to < dateFrom || o.date_from > dateTo) {
+                    return false
+                }
+            }
+
             return true
         })
     }, [orders, search, statusFilter, dateFrom, dateTo])
 
-    const isFiltered = search.trim() !== "" || statusFilter !== "" || dateFrom !== "" || dateTo !== ""
+    const isFiltered = search.trim() !== "" || statusFilter !== "" || currentMonday !== null
 
     function clearFilters() {
         setSearch("")
         setStatusFilter("")
-        setDateFrom("")
-        setDateTo("")
+        setCurrentMonday(null)
+    }
+
+    // ─── Week navigation handlers ────────────────────────────────────────────
+    function goToPrevWeek() {
+        if (currentMonday) {
+            setCurrentMonday(shiftWeek(currentMonday, -1))
+        }
+    }
+
+    function goToNextWeek() {
+        if (currentMonday) {
+            setCurrentMonday(shiftWeek(currentMonday, 1))
+        }
+    }
+
+    function setThisWeek() {
+        setCurrentMonday(getMondayOfWeek(new Date()))
     }
 
     // ─── Handlers ─────────────────────────────────────────────────────────────
@@ -106,8 +180,8 @@ export default function MealPurchaseOrderApprovalModule() {
             ])
             setItems(itemData)
             setScheduleEntries(scheduleData)
-        } catch (error: any) {
-            toast.error(error?.message ?? "Failed to load purchase order details.")
+        } catch (error: unknown) {
+            toast.error(error instanceof Error ? error.message : "Failed to load purchase order details.")
         } finally {
             setIsLoadingItems(false)
             setIsLoadingSchedules(false)
@@ -120,8 +194,8 @@ export default function MealPurchaseOrderApprovalModule() {
             toast.success(`Purchase Order #${order.id} has been approved.`)
             setIsDetailOpen(false)
             await loadOrders()
-        } catch (error: any) {
-            toast.error(error?.message ?? "Failed to approve purchase order.")
+        } catch (error: unknown) {
+            toast.error(error instanceof Error ? error.message : "Failed to approve purchase order.")
             throw error
         }
     }
@@ -132,8 +206,8 @@ export default function MealPurchaseOrderApprovalModule() {
             toast.success(`Purchase Order #${order.id} has been rejected.`)
             setIsDetailOpen(false)
             await loadOrders()
-        } catch (error: any) {
-            toast.error(error?.message ?? "Failed to reject purchase order.")
+        } catch (error: unknown) {
+            toast.error(error instanceof Error ? error.message : "Failed to reject purchase order.")
             throw error
         }
     }
@@ -166,16 +240,7 @@ export default function MealPurchaseOrderApprovalModule() {
 
             {/* Filters */}
             <div className="flex flex-wrap items-end gap-3">
-                {/* Search */}
-                <div className="flex flex-col gap-1">
-                    <span className="text-xs font-medium text-muted-foreground">Search</span>
-                    <Input
-                        className="h-9 w-48"
-                        placeholder="PO #, date…"
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                    />
-                </div>
+               
 
                 {/* Status */}
                 <div className="flex flex-col gap-1">
@@ -191,26 +256,42 @@ export default function MealPurchaseOrderApprovalModule() {
                     </NativeSelect>
                 </div>
 
-                {/* Date From */}
+                {/* Date Range */}
                 <div className="flex flex-col gap-1">
-                    <span className="text-xs font-medium text-muted-foreground">Date From</span>
-                    <Input
-                        type="date"
-                        className="h-9 w-40"
-                        value={dateFrom}
-                        onChange={(e) => setDateFrom(e.target.value)}
-                    />
-                </div>
-
-                {/* Date To */}
-                <div className="flex flex-col gap-1">
-                    <span className="text-xs font-medium text-muted-foreground">Date To</span>
-                    <Input
-                        type="date"
-                        className="h-9 w-40"
-                        value={dateTo}
-                        onChange={(e) => setDateTo(e.target.value)}
-                    />
+                    <span className="text-xs font-medium text-muted-foreground">Date Range</span>
+                    {currentMonday ? (
+                        <div className="flex items-center gap-2">
+                            <Button
+                                variant="outline"
+                                size="icon"
+                                className="h-9 w-9"
+                                onClick={goToPrevWeek}
+                                title="Previous week"
+                            >
+                                <ChevronLeftIcon className="size-4" />
+                            </Button>
+                            <span className="text-sm font-medium tabular-nums min-w-[180px] text-center">
+                                {dateRange}
+                            </span>
+                            <Button
+                                variant="outline"
+                                size="icon"
+                                className="h-9 w-9"
+                                onClick={goToNextWeek}
+                                title="Next week"
+                            >
+                                <ChevronRightIcon className="size-4" />
+                            </Button>
+                        </div>
+                    ) : (
+                        <Button
+                            variant="outline"
+                            className="h-9"
+                            onClick={setThisWeek}
+                        >
+                            Set This Week
+                        </Button>
+                    )}
                 </div>
 
                 {/* Clear filters */}

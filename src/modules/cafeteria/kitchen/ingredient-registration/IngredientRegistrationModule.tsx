@@ -68,8 +68,8 @@ export default function IngredientRegistrationModule() {
     try {
       const data = await fetchIngredients();
       setIngredients(data);
-    } catch (err: any) {
-      toast.error(err?.message ?? "Failed to load ingredients.");
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Failed to load ingredients.");
     } finally {
       setListLoading(false);
     }
@@ -81,8 +81,8 @@ export default function IngredientRegistrationModule() {
     try {
       const data = await fetchOptions();
       setOptions(data);
-    } catch (err: any) {
-      toast.error(err?.message ?? "Failed to load form options.");
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Failed to load form options.");
     } finally {
       setOptionsLoading(false);
     }
@@ -125,8 +125,8 @@ export default function IngredientRegistrationModule() {
       }
       setDialogOpen(false);
       await loadIngredients();
-    } catch (err: any) {
-      toast.error(err?.message ?? "Something went wrong.");
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Something went wrong.");
       throw err;
     }
   }

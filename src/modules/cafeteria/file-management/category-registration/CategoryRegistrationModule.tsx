@@ -51,8 +51,8 @@ export default function CategoryRegistrationModule() {
     try {
       const data = await fetchCategories();
       setCategories(data);
-    } catch (err: any) {
-      toast.error(err?.message ?? "Failed to load categories.");
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Failed to load categories.");
     } finally {
       setListLoading(false);
     }
@@ -93,8 +93,8 @@ export default function CategoryRegistrationModule() {
       }
       setFormOpen(false);
       await loadCategories();
-    } catch (err: any) {
-      toast.error(err?.message ?? "Something went wrong.");
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Something went wrong.");
       throw err;
     }
   }
