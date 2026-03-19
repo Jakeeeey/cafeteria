@@ -1,0 +1,2 @@
+import IngredientPriceListModule from "./IngredientPriceListModule"
+export default IngredientPriceListModule

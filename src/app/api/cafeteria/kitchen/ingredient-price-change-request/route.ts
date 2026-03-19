@@ -66,6 +66,31 @@ function decodeJwtPayload(token: string): any | null {
     }
 }
 
+// ─── GET – list existing requests ──────────────────────────────────────────
+export async function GET() {
+    try {
+        const headers = authHeaders();
+        const base = baseUrl();
+
+        // Fetch requests including related user info if needed
+        const url = `${base}/items/ingredient_price_requests?fields=*,requested_by.*&sort=-requested_at`;
+        const res = await proxyFetch(url, { method: "GET", headers });
+        const data = await parseJson(res);
+
+        if (!res.ok) {
+            return NextResponse.json(
+                { message: data?.errors?.[0]?.message ?? data?.message ?? "Failed to fetch requests" },
+                { status: res.status }
+            );
+        }
+
+        const raw = Array.isArray(data) ? data : (data?.data ?? data?.content ?? []);
+        return NextResponse.json(raw, { status: 200 });
+    } catch (err: any) {
+        return NextResponse.json({ message: err.message }, { status: 500 });
+    }
+}
+
 // ─── POST – create price change request ───────────────────────────────────────
 export async function POST(req: NextRequest) {
     try {
@@ -126,6 +151,15 @@ export async function POST(req: NextRequest) {
             requested_by = 0; // Better to fail cleanly on 0 if absolutely no user exists
         }
 
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = String(now.getDate()).padStart(2, '0');
+        const hours = String(now.getHours()).padStart(2, '0');
+        const minutes = String(now.getMinutes()).padStart(2, '0');
+        const seconds = String(now.getSeconds()).padStart(2, '0');
+        const localTimestamp = `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
+
         // Build the payload for Directus (ingredient_price_requests collection)
         // Ensure strictly matching types for foreign keys (integers) and costs (numbers)
         const payload = {
@@ -133,7 +167,8 @@ export async function POST(req: NextRequest) {
             old_cost: Number(body.old_price),
             new_cost: Number(body.requested_price),
             request_reason: String(body.reason || ""),
-            requested_by: requested_by
+            requested_by: requested_by,
+            requested_at: localTimestamp
         };
 
         const upstream = await proxyFetch(
@@ -157,5 +192,41 @@ export async function POST(req: NextRequest) {
             { message: "Server error. Please contact Administrator." },
             { status: 500 }
         );
+    }
+}
+
+// ─── PUT – update existing price change request (Directus uses PATCH) ───────
+export async function PUT(req: NextRequest) {
+    try {
+        const headers = authHeaders();
+        const base = baseUrl();
+
+        const body = await req.json().catch(() => null);
+        if (!body || !body.id) {
+            return NextResponse.json({ message: "Invalid request body. 'id' is required." }, { status: 400 });
+        }
+
+        const { id, ...rest } = body;
+        const payload = {
+            new_cost: Number(rest.requested_price),
+            request_reason: String(rest.reason || ""),
+        };
+
+        const upstream = await proxyFetch(
+            `${base}/items/ingredient_price_requests/${id}`,
+            { method: "PATCH", headers, body: JSON.stringify(payload) }
+        );
+        const data = await parseJson(upstream);
+
+        if (!upstream.ok) {
+            return NextResponse.json(
+                { message: data?.errors?.[0]?.message ?? data?.message ?? "Failed to update price change request." },
+                { status: upstream.status }
+            );
+        }
+
+        return NextResponse.json(data ?? { ok: true }, { status: upstream.status });
+    } catch (err: any) {
+        return NextResponse.json({ message: err.message }, { status: 500 });
     }
 }

@@ -41,9 +41,11 @@ export default function MealViewDialog({ open, onOpenChange, meal }: MealViewDia
     ? `${process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, '')}${meal.image}`
     : meal.image;
 
-  // Sum of all ingredient cost_per_unit values
+  // Sum of all ingredient (cost_per_unit * quantity) values
   const totalIngredientCost = (meal.ingredients ?? []).reduce((sum, ing) => {
-    return sum + Number(ing.ingredient?.cost_per_unit ?? 0);
+    const qty = Number(ing.quantity) || 0;
+    const unitCost = Number(ing.ingredient?.cost_per_unit) || 0;
+    return sum + (qty * unitCost);
   }, 0);
 
   // Total cost = servings × cost per serving
@@ -65,7 +67,7 @@ export default function MealViewDialog({ open, onOpenChange, meal }: MealViewDia
             {meal.category ? (
               <Badge 
                 variant="secondary" 
-                className="px-0 py-0 text-sm font-black uppercase tracking-widest bg-transparent text-black"
+                className="px-2 py-0.5 text-xs font-bold uppercase tracking-widest"
               >
                 {meal.category.name}
               </Badge>
@@ -154,23 +156,16 @@ export default function MealViewDialog({ open, onOpenChange, meal }: MealViewDia
                               {ing.ingredient?.name || "Unknown"}
                             </TableCell>
                             <TableCell className="text-muted-foreground text-sm whitespace-nowrap">
-                              {ing.ingredient?.unit ||
-                               ing.ingredient?.unit_of_measurement?.unit_name ||
-                               ing.ingredient?.unit_of_measurement?.name ||
-                               ing.ingredient?.unit_of_measurement?.abbreviation ||
-                               ing.ingredient?.unit_name ||
-                               ing.ingredient?.unit_abbreviation ||
-                               "Piece(s)"}
+                              {ing.ingredient?.unit || "Piece(s)"}
                             </TableCell>
                             <TableCell className="text-right font-mono font-medium text-sm whitespace-nowrap">
                               {Number(ing.quantity).toLocaleString()}
                             </TableCell>
                             <TableCell className="text-right font-mono font-medium text-sm whitespace-nowrap">
-                              ₱{Number(ing.ingredient?.cost_per_unit ?? 0).toFixed(2)}
+                              ₱{(Number(ing.ingredient?.cost_per_unit ?? 0) * Number(ing.quantity ?? 0)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </TableCell>
                           </TableRow>
                         ))}
-                        {/* Total ingredient cost row */}
                         {/* Total ingredient cost row */}
                         <TableRow className="bg-muted/50 border-t-2">
                           <TableCell className="text-[11px] sm:text-xs text-muted-foreground italic py-3">
@@ -185,27 +180,27 @@ export default function MealViewDialog({ open, onOpenChange, meal }: MealViewDia
                         </TableRow>
 
                         {/* Total Cost row */}
-                        <TableRow className="bg-green-500/10">
+                        <TableRow className="bg-green-500/10 dark:bg-green-500/20">
                           <TableCell className="text-[11px] sm:text-xs text-muted-foreground italic py-3 break-words min-w-[120px]">
                             ({meal.serving} serv. × ₱{Number(meal.cost_per_serving).toFixed(2)})
                           </TableCell>
-                          <TableCell colSpan={2} className="text-sm font-semibold text-right text-green-700 py-3 whitespace-nowrap">
-                            Total Cost
+                          <TableCell colSpan={2} className="text-sm font-semibold text-right text-green-700 dark:text-green-400 py-3 whitespace-nowrap">
+                            Total Projected Revenue
                           </TableCell>
-                          <TableCell className="text-right font-mono font-bold text-sm text-green-700 py-3 whitespace-nowrap">
+                          <TableCell className="text-right font-mono font-bold text-sm text-green-700 dark:text-green-400 py-3 whitespace-nowrap">
                             ₱{totalCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </TableCell>
                         </TableRow>
 
                         {/* Net Cost row */}
-                        <TableRow className={netAmount >= 0 ? "bg-blue-500/10" : "bg-red-500/10"}>
+                        <TableRow className={netAmount >= 0 ? "bg-blue-500/10 dark:bg-blue-500/20" : "bg-red-500/10 dark:bg-red-500/20"}>
                           <TableCell className="text-[11px] sm:text-xs text-muted-foreground italic py-3 break-words min-w-[120px]">
-                            (Total Cost − Ing. Cost)
+                            (Proj. Revenue − Ing. Cost)
                           </TableCell>
-                          <TableCell colSpan={2} className={`text-sm font-semibold text-right py-3 whitespace-nowrap ${netAmount >= 0 ? "text-blue-700" : "text-red-700"}`}>
+                          <TableCell colSpan={2} className={`text-sm font-semibold text-right py-3 whitespace-nowrap ${netAmount >= 0 ? "text-blue-700 dark:text-blue-400" : "text-red-700 dark:text-red-400"}`}>
                             Net Income
                           </TableCell>
-                          <TableCell className={`text-right font-mono font-bold text-sm py-3 whitespace-nowrap ${netAmount >= 0 ? "text-blue-700" : "text-red-700"}`}>
+                          <TableCell className={`text-right font-mono font-bold text-sm py-3 whitespace-nowrap ${netAmount >= 0 ? "text-blue-700 dark:text-blue-400" : "text-red-700 dark:text-red-400"}`}>
                             ₱{netAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </TableCell>
                         </TableRow>

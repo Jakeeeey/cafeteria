@@ -4,7 +4,7 @@ import * as React from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Loader2Icon, PlusIcon, TrashIcon, XIcon, UploadCloudIcon } from "lucide-react";
+import { Loader2Icon, PlusIcon, TrashIcon, XIcon, UploadCloudIcon, Check, ChevronsUpDown } from "lucide-react";
 
 import {
   Dialog,
@@ -23,6 +23,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import { cn } from "@/lib/utils";
 import {
   Form,
   FormControl,
@@ -177,12 +190,10 @@ function MealFormInner({
 
   const handleSubmit = form.handleSubmit(async (values) => {
     console.log("[MealFormDialog] Submitting values:", values);
-    // 🔥 CRITICAL: Filter out any fields that aren't part of the API spec
     const sanitizedIngredients = values.ingredients.map(ing => ({
       ingredient_id: Number(ing.ingredient_id),
       quantity: Number(ing.quantity),
     }));
-    console.log("[MealFormDialog] Sanitized ingredients:", sanitizedIngredients);
 
     const data = {
       name: values.name,
@@ -304,11 +315,6 @@ function MealFormInner({
                             }}
                           />
                         </div>
-                        {typeof value === "string" && value && previewUrl && (
-                          <p className="text-xs text-muted-foreground">
-                            Current image selected. Remove and upload a new file to replace it.
-                          </p>
-                        )}
                       </div>
                     </FormControl>
                     <FormMessage />
@@ -345,8 +351,8 @@ function MealFormInner({
                       <FormControl>
                         <Input
                           type="number"
-                          step="0.01"
                           {...field}
+                          step="any"
                           value={field.value === 0 ? "" : field.value}
                           onChange={(e) => field.onChange(e.target.value === "" ? 0 : Number(e.target.value))}
                         />
@@ -396,7 +402,10 @@ function MealFormInner({
               </div>
             </CardHeader>
             <CardContent>
-              <div className="rounded-md border overflow-hidden">
+              <div 
+                className="rounded-md border overflow-y-auto max-h-[300px] scrollbar-thin scrollbar-thumb-muted-foreground/20 overscroll-contain"
+                onWheel={(e) => e.stopPropagation()}
+              >
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -415,11 +424,10 @@ function MealFormInner({
                       </TableRow>
                     ) : (
                       fields.map((field, index) => {
-                        const ingredient = ingredients.find(i => i.id === watchedIngredients[index]?.ingredient_id);
+                        const ingredient = ingredients.find(i => String(i.id) === String(watchedIngredients[index]?.ingredient_id));
                         return (
                           <TableRow key={field.id}>
                             <TableCell className="font-medium">
-                              {/* 🔥 CRITICAL: The ingredient_id must be registered so it is sent in values.ingredients */}
                               <input
                                 type="hidden"
                                 {...form.register(`ingredients.${index}.ingredient_id`, { valueAsNumber: true })}
@@ -427,7 +435,7 @@ function MealFormInner({
                               {ingredient?.name || "Unknown"}
                             </TableCell>
                             <TableCell className="text-sm text-muted-foreground">
-                              {ingredient?.unit_of_measurement?.unit_name || ingredient?.unit_of_measurement?.name || ingredient?.unit_of_measurement?.abbreviation || ingredient?.unit || ingredient?.unit_name || ingredient?.unit_abbreviation || "—"}
+                              {ingredient?.unit || "—"}
                             </TableCell>
                             <TableCell>
                               <FormField
@@ -436,9 +444,9 @@ function MealFormInner({
                                 render={({ field: qtyField }) => (
                                   <Input
                                     type="number"
-                                    step="0.01"
                                     className="h-8"
                                     {...qtyField}
+                                    step="any"
                                     value={qtyField.value === 0 ? "" : qtyField.value}
                                     onChange={(e) => qtyField.onChange(e.target.value === "" ? 0 : Number(e.target.value))}
                                   />
@@ -506,54 +514,117 @@ interface AddIngProps {
   onAdd: (data: { ingredient_id: number; quantity: number }) => void;
 }
 
-function AddIngredientDialog({ open, onOpenChange, ingredients, existingIngredientIds, onAdd }: AddIngProps) {
+function AddIngredientDialog({ open: dialogOpen, onOpenChange, ingredients, existingIngredientIds, onAdd }: AddIngProps) {
   const [selectedId, setSelectedId] = React.useState<string>("");
   const [qty, setQty] = React.useState<number>(1);
+  const [openPopover, setOpenPopover] = React.useState(false);
+  const [searchTerm, setSearchTerm] = React.useState("");
 
-  const selectedIngredient = ingredients.find(ing => ing.id === Number(selectedId));
+  // Filter based on existing ingredients AND search term
+  const selectableIngredients = React.useMemo(() => {
+    return ingredients.filter((ing) => {
+      if (existingIngredientIds.includes(ing.id)) return false;
+      if (!searchTerm) return true;
+      const term = searchTerm.toLowerCase();
+      return ing.name.toLowerCase().includes(term);
+    });
+  }, [ingredients, existingIngredientIds, searchTerm]);
+
+  const selectedIngredient = ingredients.find((ing) => String(ing.id) === String(selectedId));
 
   const handleConfirm = () => {
     if (!selectedId) return;
     onAdd({ ingredient_id: Number(selectedId), quantity: qty });
     setSelectedId("");
     setQty(1);
+    setSearchTerm("");
+    setOpenPopover(false);
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={dialogOpen} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[400px]">
         <DialogHeader>
           <DialogTitle>Add Ingredient</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 py-4">
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Ingredient</label>
-            <Select value={selectedId} onValueChange={setSelectedId}>
-              <SelectTrigger className="w-full h-8 text-sm">
-                <SelectValue placeholder="Select ingredient..." />
-              </SelectTrigger>
-              <SelectContent className="max-h-[200px] w-[var(--radix-select-trigger-width)]">
-                {ingredients
-                  .filter((ing) => !existingIngredientIds.includes(ing.id))
-                  .map((ing) => (
-                    <SelectItem key={ing.id} value={String(ing.id)} className="text-sm">
-                      {ing.name}
-                    </SelectItem>
-                  ))}
-              </SelectContent>
-            </Select>
+          <div className="space-y-2 text-left">
+            <label className="text-sm font-medium">Select Ingredient</label>
+            <Popover open={openPopover} onOpenChange={setOpenPopover}>
+              <PopoverTrigger asChild>
+                <div className="relative">
+                  <Input
+                    placeholder="Search ingredient..."
+                    value={searchTerm}
+                    onChange={(e) => {
+                      setSearchTerm(e.target.value);
+                      if (!openPopover) setOpenPopover(true);
+                      if (selectedId) setSelectedId(""); // clear selection if typing new search
+                    }}
+                    onClick={() => {
+                      if (!openPopover) setOpenPopover(true);
+                    }}
+                    className="pr-10"
+                  />
+                  <ChevronsUpDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 shrink-0 opacity-50" />
+                </div>
+              </PopoverTrigger>
+              <PopoverContent 
+                className="w-[var(--radix-popover-trigger-width)] p-0" 
+                align="start"
+                onOpenAutoFocus={(e) => e.preventDefault()} // dont autofocus internal search
+              >
+                <Command>
+                  <CommandList 
+                    className="max-h-[240px] overflow-y-auto overscroll-contain"
+                    onWheel={(e) => e.stopPropagation()}
+                  >
+                    <CommandEmpty>No matching ingredients found.</CommandEmpty>
+                    <CommandGroup>
+                      {selectableIngredients.map((ing) => (
+                        <CommandItem
+                          key={ing.id}
+                          value={ing.name}
+                          onSelect={() => {
+                            setSelectedId(String(ing.id));
+                            setSearchTerm(ing.name);
+                            setOpenPopover(false);
+                          }}
+                        >
+                          <Check
+                            className={cn(
+                              "mr-2 h-4 w-4",
+                              selectedId === String(ing.id) ? "opacity-100" : "opacity-0"
+                            )}
+                          />
+                          <div className="flex flex-col">
+                            <span className="text-sm font-medium">{ing.name}</span>
+                            <span className="text-[10px] text-primary/60 font-semibold uppercase tracking-wider -mt-0.5">
+                              {ing.unit || "—"}
+                            </span>
+                          </div>
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
           </div>
-          {selectedIngredient && (
-            <div className="rounded-md bg-muted p-3">
-              <p className="text-sm font-medium">Unit: <span className="text-muted-foreground">{selectedIngredient.unit_of_measurement?.unit_name || selectedIngredient.unit_of_measurement?.name || selectedIngredient.unit_of_measurement?.abbreviation || selectedIngredient.unit || selectedIngredient.unit_name || selectedIngredient.unit_abbreviation || "—"}</span></p>
-            </div>
-          )}
+
           <div className="space-y-2">
-            <label className="text-sm font-medium">Quantity</label>
+            <div className="flex items-center justify-between">
+              <label className="text-sm font-medium">Quantity</label>
+              {selectedIngredient && (
+                <span className="text-[10px] font-semibold text-primary/80 bg-primary/5 px-2 py-0.5 rounded border border-primary/10">
+                  {selectedIngredient.unit || "—"}
+                </span>
+              )}
+            </div>
             <Input
               type="number"
               min={0.01}
-              step="0.01"
+              step="any"
               value={qty === 0 ? "" : qty}
               onChange={(e) => setQty(e.target.value === "" ? 0 : Number(e.target.value))}
             />

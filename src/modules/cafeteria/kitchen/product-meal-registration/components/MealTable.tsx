@@ -134,7 +134,7 @@ export default function MealTable({
                             unit = fallback.unit || "";
                           }
                         }
-                        return name ? `${name}${unit ? ` (${unit})` : ""} x${quantity}` : "";
+                        return name ? `${name} x${quantity}` : "";
                       })
                       .filter(Boolean)
                       .join(", ")

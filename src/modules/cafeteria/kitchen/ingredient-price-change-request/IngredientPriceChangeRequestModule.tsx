@@ -23,11 +23,13 @@ import {
 
 import IngredientPriceChangeTable from "./components/IngredientPriceChangeTable"
 import IngredientPriceChangeFormDialog from "./components/IngredientPriceChangeFormDialog"
-import { fetchIngredients, submitPriceChangeRequest } from "./providers/fetchProvider"
-import type { Ingredient, IngredientPriceChangeFormValues } from "./types"
+import { fetchIngredients, submitPriceChangeRequest, fetchIngredientOptions, fetchPriceChangeRequests } from "./providers/fetchProvider"
+import type { Ingredient, IngredientPriceChangeFormValues, PriceChangeRequest } from "./types"
+import type { SelectOption } from "../ingredient-registration/types"
 
 export default function IngredientPriceChangeRequestModule() {
     const [ingredients, setIngredients] = useState<Ingredient[]>([])
+    const [requests, setRequests] = useState<PriceChangeRequest[]>([])
     const [searchQuery, setSearchQuery] = useState("")
     const [supplierFilter, setSupplierFilter] = useState("all")
     const [categoryFilter, setCategoryFilter] = useState("all")
@@ -35,70 +37,58 @@ export default function IngredientPriceChangeRequestModule() {
     const [selectedIngredient, setSelectedIngredient] = useState<Ingredient | null>(null)
     const [isLoading, setIsLoading] = useState(true)
 
-    const loadIngredients = async () => {
+    const [supplierOptions, setSupplierOptions] = useState<SelectOption[]>([])
+    const [categoryOptions, setCategoryOptions] = useState<SelectOption[]>([])
+
+    const loadData = async () => {
         setIsLoading(true)
         try {
-            const data = await fetchIngredients()
-            setIngredients(data)
+            const [ingData, optData, reqData] = await Promise.all([
+                fetchIngredients(),
+                fetchIngredientOptions(),
+                fetchPriceChangeRequests(),
+            ])
+            setIngredients(ingData)
+            setSupplierOptions(optData.suppliers)
+            setCategoryOptions(optData.categories)
+            setRequests(reqData)
         } catch (error: any) {
-            console.error("Failed to fetch ingredients:", error)
-            toast.error(error?.message ?? "Failed to load ingredients.")
+            console.error("Failed to fetch data:", error)
+            toast.error(error?.message ?? "Failed to load data.")
         } finally {
             setIsLoading(false)
         }
     }
 
     useEffect(() => {
-        loadIngredients()
+        loadData()
     }, [])
-
-    // Derive unique supplier options from loaded data
-    const supplierOptions = React.useMemo(() => {
-        const seen = new Set<string>()
-        return ingredients
-            .filter((i) => i.supplier_name)
-            .filter((i) => {
-                if (seen.has(i.supplier_name!)) return false
-                seen.add(i.supplier_name!)
-                return true
-            })
-            .map((i) => ({ label: i.supplier_name!, value: i.supplier_name! }))
-    }, [ingredients])
-
-    // Derive unique category options from loaded data
-    const categoryOptions = React.useMemo(() => {
-        const seen = new Set<string>()
-        return ingredients
-            .filter((i) => i.category_name)
-            .filter((i) => {
-                if (seen.has(i.category_name!)) return false
-                seen.add(i.category_name!)
-                return true
-            })
-            .map((i) => ({ label: i.category_name!, value: i.category_name! }))
-    }, [ingredients])
 
     const filteredIngredients = React.useMemo(() => {
         const q = searchQuery.trim().toLowerCase()
+        const sFilter = supplierFilter === "all" ? null : Number(supplierFilter)
+        const cFilter = categoryFilter === "all" ? null : Number(categoryFilter)
 
-        return ingredients.filter((i) => {
-            // Search filter
-            if (q) {
-                const matchesSearch =
-                    i.name.toLowerCase().includes(q) ||
-                    (i.description ?? "").toLowerCase().includes(q) ||
-                    (i.brand_name ?? "").toLowerCase().includes(q) ||
-                    (i.category_name ?? "").toLowerCase().includes(q) ||
-                    (i.supplier_name ?? "").toLowerCase().includes(q)
-                if (!matchesSearch) return false
-            }
-            // Supplier filter
-            if (supplierFilter !== "all" && i.supplier_name !== supplierFilter) return false
-            // Category filter
-            if (categoryFilter !== "all" && i.category_name !== categoryFilter) return false
+        return ingredients
+            .filter((i) => {
+                // Search filter
+                if (q) {
+                    const matchesSearch =
+                        i.name.toLowerCase().includes(q) ||
+                        (i.description ?? "").toLowerCase().includes(q) ||
+                        (i.brand_name ?? "").toLowerCase().includes(q) ||
+                        (i.category_name ?? "").toLowerCase().includes(q) ||
+                        (i.supplier_name ?? "").toLowerCase().includes(q)
+                    if (!matchesSearch) return false
+                }
+                // Supplier filter
+                if (sFilter !== null && i.supplier !== sFilter) return false
+                // Category filter
+                if (cFilter !== null && i.category_id !== cFilter) return false
 
-            return true
-        })
+                return true
+            })
+            .sort((a, b) => a.id - b.id)
     }, [ingredients, searchQuery, supplierFilter, categoryFilter])
 
     const handleOpenRequestModal = (ingredient: Ingredient) => {
@@ -109,10 +99,11 @@ export default function IngredientPriceChangeRequestModule() {
     const handleFormSubmit = async (values: IngredientPriceChangeFormValues) => {
         try {
             await submitPriceChangeRequest(values)
-            toast.success("Price change request submitted successfully.")
+            toast.success(values.id ? "Price change request updated." : "Price change request submitted.")
             setIsRequestModalOpen(false)
+            loadData()
         } catch (error: any) {
-            toast.error(error?.message ?? "Failed to submit request.")
+            toast.error(error?.message ?? "Failed to save request.")
         }
     }
 
@@ -147,7 +138,7 @@ export default function IngredientPriceChangeRequestModule() {
                                 <SelectContent>
                                     <SelectItem value="all">All Suppliers</SelectItem>
                                     {supplierOptions.map((opt) => (
-                                        <SelectItem key={opt.value} value={opt.value}>
+                                        <SelectItem key={opt.value} value={String(opt.value)}>
                                             {opt.label}
                                         </SelectItem>
                                     ))}
@@ -162,7 +153,7 @@ export default function IngredientPriceChangeRequestModule() {
                                 <SelectContent>
                                     <SelectItem value="all">All Categories</SelectItem>
                                     {categoryOptions.map((opt) => (
-                                        <SelectItem key={opt.value} value={opt.value}>
+                                        <SelectItem key={opt.value} value={String(opt.value)}>
                                             {opt.label}
                                         </SelectItem>
                                     ))}
@@ -175,7 +166,7 @@ export default function IngredientPriceChangeRequestModule() {
                                 size="icon"
                                 title="Refresh list"
                                 disabled={isLoading}
-                                onClick={loadIngredients}
+                                onClick={loadData}
                                 className="w-full sm:w-10 sm:h-10 shrink-0"
                             >
                                 <RefreshCwIcon className={`size-4 ${isLoading ? "animate-spin" : ""}`} />
@@ -187,6 +178,7 @@ export default function IngredientPriceChangeRequestModule() {
                 <CardContent>
                     <IngredientPriceChangeTable
                         ingredients={filteredIngredients}
+                        requests={requests}
                         isLoading={isLoading}
                         onRequestChange={handleOpenRequestModal}
                     />
@@ -197,6 +189,7 @@ export default function IngredientPriceChangeRequestModule() {
                 open={isRequestModalOpen}
                 onOpenChange={setIsRequestModalOpen}
                 ingredient={selectedIngredient}
+                activeRequest={selectedIngredient ? requests.find(r => r.ingredient_id === selectedIngredient.id && r.status === "pending") : undefined}
                 onSubmit={handleFormSubmit}
             />
         </div>
