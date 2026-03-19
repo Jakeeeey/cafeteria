@@ -34,6 +34,7 @@ export default function RejectConfirmDialog({
         setIsSubmitting(true)
         try {
             await onReject({ id: request.id })
+            onOpenChange(false)
         } finally {
             setIsSubmitting(false)
         }
