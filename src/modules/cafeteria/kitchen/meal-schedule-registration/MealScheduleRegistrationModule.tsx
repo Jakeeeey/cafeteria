@@ -10,7 +10,13 @@ import { Separator } from "@/components/ui/separator";
 import MealPalettePanel from "./components/MealPalettePanel";
 import ScheduleCalendar from "./components/ScheduleCalendar";
 import MealReviewDialog from "./components/MealReviewDialog";
-import { fetchCurrentUserId, fetchMeals, submitSchedule } from "./providers/fetchProvider";
+import DuplicateWarningDialog from "./components/DuplicateWarningDialog";
+import {
+  fetchCurrentUserId,
+  fetchMeals,
+  submitSchedule,
+  checkDuplicateMeals
+} from "./providers/fetchProvider";
 import type {
   DayOfWeek,
   Meal,
@@ -83,6 +89,11 @@ export default function MealScheduleRegistrationModule() {
   // ─── Review dialog ───────────────────────────────────────────────────────
   const [reviewOpen, setReviewOpen] = React.useState(false);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
+
+  // ─── Duplicate warning dialog ─────────────────────────────────────────────
+  const [duplicateWarningOpen, setDuplicateWarningOpen] = React.useState(false);
+  const [duplicateMeals, setDuplicateMeals] = React.useState<Array<{ date: string; mealType: string; mealName: string }>>([]);
+  const [isCheckingDuplicates, setIsCheckingDuplicates] = React.useState(false);
 
   // ─── Load meals on mount ─────────────────────────────────────────────────
   const loadMeals = React.useCallback(async () => {
@@ -176,20 +187,92 @@ export default function MealScheduleRegistrationModule() {
     toast.success("Schedule cleared.");
   }
 
-  // ─── "Done Scheduling" → open review dialog ──────────────────────────────
+  // ─── "Done Scheduling" → check duplicates → open review dialog ───────────
   const entryCount = React.useMemo(
     () => countScheduleEntries(schedule),
     [schedule]
   );
 
-  function handleOpenReview() {
+  async function handleOpenReview() {
     if (entryCount === 0) {
       toast.warning(
         "No meals scheduled yet. Drag meals into the calendar first."
       );
       return;
     }
+
+    // Collect all scheduled meals (date + meal type + meal name)
+    const scheduledMeals: Array<{ date: string; mealType: string; mealName: string }> = [];
+
+    for (const day of Object.keys(schedule)) {
+      const daySchedule = schedule[day as DayOfWeek];
+      const dayIndex = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"].indexOf(day);
+
+      if (dayIndex !== -1) {
+        const date = new Date(currentMonday);
+        date.setDate(date.getDate() + dayIndex);
+        const dateStr = toISODate(date);
+
+        for (const mealType of Object.keys(daySchedule)) {
+          const entries = daySchedule[mealType as MealType];
+          for (const entry of entries) {
+            scheduledMeals.push({
+              date: dateStr,
+              mealType: mealType,
+              mealName: entry.meal.name
+            });
+          }
+        }
+      }
+    }
+
+    // Check for duplicate meals
+    setIsCheckingDuplicates(true);
+    try {
+      const { approved, cancelled } = await checkDuplicateMeals(scheduledMeals);
+
+      // If there are approved duplicates, block submission
+      if (approved.length > 0) {
+        const formattedMeals = approved.map(m => {
+          const date = new Date(m.date);
+          const dateStr = date.toLocaleDateString("en-US", {
+            weekday: "long",
+            month: "long",
+            day: "numeric",
+          });
+          return `${m.mealName} (${m.mealType}) on ${dateStr}`;
+        }).join("; ");
+
+        toast.error(
+          `Cannot schedule meals. The following meals already have approved purchase orders: ${formattedMeals}`
+        );
+        return;
+      }
+
+      // If there are cancelled/rejected duplicates, show warning
+      if (cancelled.length > 0) {
+        setDuplicateMeals(cancelled);
+        setDuplicateWarningOpen(true);
+        return;
+      }
+
+      // No conflicts, proceed to review
+      setReviewOpen(true);
+    } catch (err: any) {
+      toast.error(err?.message ?? "Failed to check for existing purchase orders.");
+    } finally {
+      setIsCheckingDuplicates(false);
+    }
+  }
+
+  function handleConfirmDuplicate() {
+    setDuplicateWarningOpen(false);
     setReviewOpen(true);
+  }
+
+  function handleCancelDuplicate() {
+    setDuplicateWarningOpen(false);
+    setDuplicateMeals([]);
   }
 
   // ─── Confirm and submit ──────────────────────────────────────────────────
@@ -269,10 +352,10 @@ export default function MealScheduleRegistrationModule() {
 
           <Button
             onClick={handleOpenReview}
-            disabled={entryCount === 0}
+            disabled={entryCount === 0 || isCheckingDuplicates}
           >
-            Done Scheduling
-            {entryCount > 0 && (
+            {isCheckingDuplicates ? "Checking..." : "Done Scheduling"}
+            {entryCount > 0 && !isCheckingDuplicates && (
               <span className="ml-1.5 rounded-full bg-primary-foreground/20 px-1.5 py-0.5 text-xs tabular-nums">
                 {entryCount}
               </span>
@@ -327,6 +410,15 @@ export default function MealScheduleRegistrationModule() {
         weekRange={weekRange}
         isSubmitting={isSubmitting}
         onConfirm={handleConfirmSubmit}
+      />
+
+      {/* ── Duplicate warning dialog ──────────────────────────────────────── */}
+      <DuplicateWarningDialog
+        open={duplicateWarningOpen}
+        onOpenChange={setDuplicateWarningOpen}
+        dates={duplicateMeals}
+        onConfirm={handleConfirmDuplicate}
+        onCancel={handleCancelDuplicate}
       />
     </div>
   );
