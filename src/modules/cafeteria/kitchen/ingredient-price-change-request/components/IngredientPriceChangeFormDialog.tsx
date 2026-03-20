@@ -15,12 +15,13 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog"
 
-import type { Ingredient, IngredientPriceChangeFormValues } from "../types"
+import type { Ingredient, IngredientPriceChangeFormValues, PriceChangeRequest } from "../types"
 
 interface IngredientPriceChangeFormDialogProps {
     open: boolean
     onOpenChange: (open: boolean) => void
     ingredient: Ingredient | null
+    activeRequest?: PriceChangeRequest
     onSubmit: (values: IngredientPriceChangeFormValues) => Promise<void>
 }
 
@@ -28,19 +29,28 @@ export default function IngredientPriceChangeFormDialog({
     open,
     onOpenChange,
     ingredient,
+    activeRequest,
     onSubmit,
 }: IngredientPriceChangeFormDialogProps) {
     const [requestedPrice, setRequestedPrice] = useState("")
     const [reason, setReason] = useState("")
     const [isSubmitting, setIsSubmitting] = useState(false)
 
-    // Reset form when opened with a new ingredient
+    const isEdit = !!activeRequest
+
+    // Reset form when opened with a new ingredient or pre-fill if editing
     React.useEffect(() => {
         if (open) {
-            setRequestedPrice("")
-            setReason("")
+            if (activeRequest) {
+                // Ensure exactly 2 decimal places when pre-filling
+                setRequestedPrice(Number(activeRequest.new_cost).toFixed(2))
+                setReason(activeRequest.request_reason || "")
+            } else {
+                setRequestedPrice("")
+                setReason("")
+            }
         }
-    }, [open, ingredient])
+    }, [open, ingredient, activeRequest])
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
@@ -51,9 +61,15 @@ export default function IngredientPriceChangeFormDialog({
             return
         }
 
+        if (parseFloat(requestedPrice) <= 0) {
+            toast.error("Price must be greater than zero.")
+            return
+        }
+
         setIsSubmitting(true)
         try {
             await onSubmit({
+                id: activeRequest?.id,
                 ingredient_id: ingredient.id,
                 requested_price: parseFloat(requestedPrice),
                 reason: reason.trim(),
@@ -68,50 +84,52 @@ export default function IngredientPriceChangeFormDialog({
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="sm:max-w-[600px] overflow-y-auto max-h-[90vh]">
                 <DialogHeader>
-                    <DialogTitle>Request Price Change</DialogTitle>
+                    <DialogTitle>{isEdit ? "Edit Price Change Request" : "Request Price Change"}</DialogTitle>
                     <DialogDescription>
-                        Submit a requested price change for the selected ingredient.
+                        {isEdit 
+                            ? "Modify your existing price change request before it's processed."
+                            : "Submit a requested price change for the selected ingredient."}
                     </DialogDescription>
                 </DialogHeader>
 
                 {ingredient && (
                     <form onSubmit={handleSubmit} className="grid gap-6 py-4">
                         <div className="rounded-lg bg-muted p-4 grid gap-3">
-                            <div className="grid grid-cols-2 text-sm">
-                                <span className="text-muted-foreground">Name:</span>
+                            <div className="grid grid-cols-2 text-sm border-b pb-2 last:border-0 last:pb-0">
+                                <span className="text-muted-foreground font-semibold uppercase tracking-tighter text-[11px]">Name:</span>
                                 <span className="font-medium">{ingredient.name}</span>
                             </div>
-                            <div className="grid grid-cols-2 text-sm">
-                                <span className="text-muted-foreground">Description:</span>
+                            <div className="grid grid-cols-2 text-sm border-b pb-2 last:border-0 last:pb-0">
+                                <span className="text-muted-foreground font-semibold uppercase tracking-tighter text-[11px]">Description:</span>
                                 <span className="font-medium">{ingredient.description || "—"}</span>
                             </div>
-                            <div className="grid grid-cols-2 text-sm">
-                                <span className="text-muted-foreground">Supplier:</span>
+                            <div className="grid grid-cols-2 text-sm border-b pb-2 last:border-0 last:pb-0">
+                                <span className="text-muted-foreground font-semibold uppercase tracking-tighter text-[11px]">Supplier:</span>
                                 <span className="font-medium">{ingredient.supplier_name || "—"}</span>
                             </div>
-                            <div className="grid grid-cols-2 text-sm">
-                                <span className="text-muted-foreground">Brand:</span>
+                            <div className="grid grid-cols-2 text-sm border-b pb-2 last:border-0 last:pb-0">
+                                <span className="text-muted-foreground font-semibold uppercase tracking-tighter text-[11px]">Brand:</span>
                                 <span className="font-medium">{ingredient.brand_name || "—"}</span>
                             </div>
-                            <div className="grid grid-cols-2 text-sm">
-                                <span className="text-muted-foreground">Category:</span>
+                            <div className="grid grid-cols-2 text-sm border-b pb-2 last:border-0 last:pb-0">
+                                <span className="text-muted-foreground font-semibold uppercase tracking-tighter text-[11px]">Category:</span>
                                 <span className="font-medium">{ingredient.category_name || "—"}</span>
                             </div>
-                            <div className="grid grid-cols-2 text-sm">
-                                <span className="text-muted-foreground">Quantity:</span>
+                            <div className="grid grid-cols-2 text-sm border-b pb-2 last:border-0 last:pb-0">
+                                <span className="text-muted-foreground font-semibold uppercase tracking-tighter text-[11px]">Total Quantity (Unit Count):</span>
                                 <span className="font-medium">
                                     {ingredient.unit_count != null ? Number(ingredient.unit_count).toFixed(2) : "0.00"}
                                 </span>
                             </div>
-                            <div className="grid grid-cols-2 text-sm">
-                                <span className="text-muted-foreground">Unit:</span>
+                            <div className="grid grid-cols-2 text-sm border-b pb-2 last:border-0 last:pb-0">
+                                <span className="text-muted-foreground font-semibold uppercase tracking-tighter text-[11px]">Unit:</span>
                                 <span className="font-medium">
                                     {ingredient.unit_name || "N/A"}
                                 </span>
                             </div>
-                            <div className="grid grid-cols-2 text-sm">
-                                <span className="text-muted-foreground">Current Price:</span>
-                                <span className="font-medium">
+                            <div className="grid grid-cols-2 text-sm border-b pb-2 last:border-0 last:pb-0">
+                                <span className="text-muted-foreground font-semibold uppercase tracking-tighter text-[11px]">Current Price:</span>
+                                <span className="font-medium font-mono">
                                     ₱{ingredient.cost_per_unit != null ? Number(ingredient.cost_per_unit).toFixed(2) : "0.00"}
                                 </span>
                             </div>
@@ -124,7 +142,9 @@ export default function IngredientPriceChangeFormDialog({
                                     id="new-price"
                                     type="number"
                                     step="0.01"
+                                    min="0"
                                     placeholder="0.00"
+                                    className="font-mono font-medium"
                                     value={requestedPrice}
                                     onChange={(e) => setRequestedPrice(e.target.value)}
                                     required
@@ -134,6 +154,7 @@ export default function IngredientPriceChangeFormDialog({
 
                         <div className="grid gap-2">
                             <Label htmlFor="reason">Reason for Price Change *</Label>
+                            <span className="text-xs text-muted-foreground">Please provide a valid business reason.</span>
                             <Textarea
                                 id="reason"
                                 placeholder="Explain why the price needs to be changed..."
@@ -153,8 +174,8 @@ export default function IngredientPriceChangeFormDialog({
                             >
                                 Cancel
                             </Button>
-                            <Button type="submit" disabled={isSubmitting}>
-                                {isSubmitting ? "Submitting..." : "Submit Request"}
+                            <Button type="submit" disabled={isSubmitting} className={isEdit ? "bg-amber-600 hover:bg-amber-700" : ""}>
+                                {isSubmitting ? "Saving..." : (isEdit ? "Update Request" : "Submit Request")}
                             </Button>
                         </div>
                     </form>

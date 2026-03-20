@@ -1,5 +1,5 @@
-// ─── fetchProvider.ts ───
-import type { Ingredient, IngredientPriceChangeFormValues } from "../types"
+import type { Ingredient, IngredientPriceChangeFormValues, PriceChangeRequest } from "../types"
+import type { IngredientOptions } from "../../ingredient-registration/types"
 
 // We use the exact same endpoint as the registration module to list ingredients
 const INGREDIENTS_BASE = "/api/cafeteria/kitchen/ingredient-registration"
@@ -14,19 +14,39 @@ export async function fetchIngredients(): Promise<Ingredient[]> {
         throw new Error(text || `Failed to fetch ingredients (${res.status})`)
     }
     const json = await res.json()
-    // Spring may wrap the list in a data/content field – normalise
     return Array.isArray(json) ? json : (json.data ?? json.content ?? [])
 }
 
-// ─── POST – submit price change request ────────────────────────────────────────
+export async function fetchPriceChangeRequests(): Promise<PriceChangeRequest[]> {
+    const res = await fetch(REQUEST_BASE, { cache: "no-store" })
+    if (!res.ok) {
+        const text = await res.text().catch(() => "")
+        throw new Error(text || `Failed to fetch price change requests (${res.status})`)
+    }
+    const json = await res.json()
+    return Array.isArray(json) ? json : (json.data ?? json.content ?? [])
+}
+
+// ─── GET options (categories, suppliers, etc.) ───────────────────────────────
+export async function fetchIngredientOptions(): Promise<IngredientOptions> {
+    const res = await fetch(`${INGREDIENTS_BASE}?options=true`, { cache: "no-store" })
+    if (!res.ok) {
+        const text = await res.text().catch(() => "")
+        throw new Error(text || `Failed to fetch options (${res.status})`)
+    }
+    return await res.json()
+}
+
+// ─── POST/PUT – submit or update price change request ─────────────────────────
 export async function submitPriceChangeRequest(data: IngredientPriceChangeFormValues): Promise<void> {
+    const isUpdate = !!data.id;
     const res = await fetch(REQUEST_BASE, {
-        method: "POST",
+        method: isUpdate ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
     })
     if (!res.ok) {
         const json = await res.json().catch(() => ({}))
-        throw new Error(json.message ?? `Failed to submit request (${res.status})`)
+        throw new Error(json.message ?? `Failed to ${isUpdate ? "update" : "submit"} request (${res.status})`)
     }
 }

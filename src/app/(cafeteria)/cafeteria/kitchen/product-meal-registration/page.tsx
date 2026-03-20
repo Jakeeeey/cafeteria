@@ -13,7 +13,7 @@ import { NavUser } from "../../_components/nav-user";
 import { cookies } from "next/headers";
 
 // ✅ Wire the module you asked for
-import ProductMealRegistrationModule from "@/modules/cafeteria/product-meal-registration/ProductMealRegistrationModule";
+import ProductMealRegistrationModule from "@/modules/cafeteria/kitchen/product-meal-registration";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
