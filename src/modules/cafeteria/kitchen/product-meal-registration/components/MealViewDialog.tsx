@@ -6,11 +6,8 @@ import {
   DialogContent, 
   DialogHeader, 
   DialogTitle,
-  DialogDescription,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
 import { 
   Table, 
   TableBody, 
@@ -63,6 +60,7 @@ export default function MealViewDialog({ open, onOpenChange, meal }: MealViewDia
             <span className="text-xs font-medium uppercase tracking-wider">Meal Details</span>
           </div>
           <DialogTitle className="text-3xl font-bold tracking-tight">{meal.name}</DialogTitle>
+          <div className="sr-only">Detailed view of meal {meal.name} including ingredients and cost breakdown.</div>
           <div className="flex items-center gap-2 mt-3">
             {meal.category ? (
               <Badge 
@@ -85,6 +83,7 @@ export default function MealViewDialog({ open, onOpenChange, meal }: MealViewDia
             <div className="space-y-6 overflow-y-auto pr-2 pb-4 h-full">
               {meal.image ? (
                 <div className="relative aspect-video overflow-hidden rounded-xl border bg-muted shadow-sm">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={imageUrl}
                     alt={meal.name}

@@ -13,7 +13,6 @@ import { NavUser } from "../../_components/nav-user";
 import { cookies } from "next/headers";
 
 // ✅ Wire the module you asked for
-import ComingSoon from "../../_components/ComingSoon";
 import IngredientPriceListModule from "@/modules/cafeteria/kitchen/ingredient-price-list";
 
 export const runtime = "nodejs";
@@ -21,7 +20,7 @@ export const dynamic = "force-dynamic";
 
 const COOKIE_NAME = "vos_access_token";
 
-function decodeJwtPayload(token: string): any | null {
+function decodeJwtPayload(token: string): Record<string, unknown> | null {
     try {
         const parts = token.split(".");
         if (parts.length < 2) return null;
@@ -31,15 +30,16 @@ function decodeJwtPayload(token: string): any | null {
         const padded = b64 + "=".repeat((4 - (b64.length % 4)) % 4);
 
         const json = Buffer.from(padded, "base64").toString("utf8");
-        return JSON.parse(json);
+        return JSON.parse(json) as Record<string, unknown>;
     } catch {
         return null;
     }
 }
 
-function pickString(obj: any, keys: string[]): string {
+function pickString(obj: Record<string, unknown> | null | undefined, keys: string[]): string {
+    if (!obj) return "";
     for (const k of keys) {
-        const v = obj?.[k];
+        const v = obj[k];
         if (typeof v === "string" && v.trim()) return v.trim();
     }
     return "";

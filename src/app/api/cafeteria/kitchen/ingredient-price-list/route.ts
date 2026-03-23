@@ -40,7 +40,7 @@ async function proxyFetch(
   }
 }
 
-async function parseJson(res: Response): Promise<any> {
+async function parseJson(res: Response): Promise<unknown> {
   const text = await res.text();
   try {
     return text ? JSON.parse(text) : null;
@@ -50,27 +50,27 @@ async function parseJson(res: Response): Promise<any> {
 }
 
 // ─── Flatten Directus nested relations into the flat Ingredient shape ─────────
-function normalizeIngredient(raw: any): any {
-  const brand      = typeof raw.brand_id         === "object" ? raw.brand_id         : null;
-  const category   = typeof raw.category_id      === "object" ? raw.category_id      : null;
-  const unit       = typeof raw.unit_of_measurement === "object" ? raw.unit_of_measurement : null;
-  const supplier   = typeof raw.supplier         === "object" ? raw.supplier         : null;
+function normalizeIngredient(raw: Record<string, unknown>): Record<string, unknown> {
+  const brand      = typeof raw.brand_id         === "object" ? (raw.brand_id as Record<string, unknown>)         : null;
+  const category   = typeof raw.category_id      === "object" ? (raw.category_id as Record<string, unknown>)      : null;
+  const unit       = typeof raw.unit_of_measurement === "object" ? (raw.unit_of_measurement as Record<string, unknown>) : null;
+  const supplier   = typeof raw.supplier         === "object" ? (raw.supplier as Record<string, unknown>)         : null;
 
   return {
     id:                  raw.id,
     name:                raw.name,
     description:         raw.description ?? null,
-    brand_id:            brand?.brand_id ?? (typeof raw.brand_id === "number" ? raw.brand_id : null),
-    brand_name:          brand?.brand_name ?? brand?.name ?? null,
-    category_id:         category?.category_id ?? (typeof raw.category_id === "number" ? raw.category_id : null),
-    category_name:       category?.category_name ?? category?.name ?? null,
-    unit_of_measurement: unit?.unit_id ?? (typeof raw.unit_of_measurement === "number" ? raw.unit_of_measurement : null),
-    unit_name:           unit?.unit_name ?? unit?.name ?? null,
-    unit_abbreviation:   unit?.abbreviation ?? null,
+    brand_id:            (brand?.brand_id ?? (typeof raw.brand_id === "number" ? raw.brand_id : null)) as number | null,
+    brand_name:          (brand?.brand_name ?? brand?.name ?? null) as string | null,
+    category_id:         (category?.category_id ?? (typeof raw.category_id === "number" ? raw.category_id : null)) as number | null,
+    category_name:       (category?.category_name ?? category?.name ?? null) as string | null,
+    unit_of_measurement: (unit?.unit_id ?? (typeof raw.unit_of_measurement === "number" ? raw.unit_of_measurement : null)) as number | null,
+    unit_name:           (unit?.unit_name ?? unit?.name ?? null) as string | null,
+    unit_abbreviation:   (unit?.abbreviation ?? null) as string | null,
     unit_count:          Number(raw.unit_count ?? 0),
     cost_per_unit:       Number(raw.cost_per_unit ?? 0),
-    supplier:            supplier?.id ?? (typeof raw.supplier === "number" ? raw.supplier : null),
-    supplier_name:       supplier?.supplier_name ?? supplier?.name ?? null,
+    supplier:            (supplier?.id ?? (typeof raw.supplier === "number" ? raw.supplier : null)) as number | null,
+    supplier_name:       (supplier?.supplier_name ?? supplier?.name ?? null) as string | null,
     is_active:           raw.is_active ?? 1,
     shelf_life:          raw.shelf_life ?? null,
     created_at:          raw.created_at,
@@ -105,21 +105,30 @@ export async function GET(req: NextRequest) {
           parseJson(suppliersRes),
         ]);
 
-      const toList = (raw: any): any[] =>
-        Array.isArray(raw) ? raw : (raw?.data ?? raw?.content ?? []);
+      const toList = (raw: unknown): unknown[] =>
+        Array.isArray(raw) ? raw : ((raw as Record<string, unknown>)?.data ?? (raw as Record<string, unknown>)?.content ?? []) as unknown[];
 
-      const brands = toList(brandsRaw).map((b: any) => ({
-        value: b.brand_name ?? b.name, // using name for filtering since we filter by ingredient attributes
-        label: b.brand_name ?? b.name,
-      }));
-      const categories = toList(categoriesRaw).map((c: any) => ({
-        value: c.category_name ?? c.name,
-        label: c.category_name ?? c.name,
-      }));
-      const suppliers = toList(suppliersRaw).map((s: any) => ({
-        value: s.supplier_name ?? s.name,
-        label: s.supplier_name ?? s.name,
-      }));
+      const brands = toList(brandsRaw).map((b: unknown) => {
+        const brand = b as Record<string, unknown>;
+        return {
+          value: (brand.brand_name ?? brand.name) as string,
+          label: (brand.brand_name ?? brand.name) as string,
+        };
+      });
+      const categories = toList(categoriesRaw).map((c: unknown) => {
+        const category = c as Record<string, unknown>;
+        return {
+          value: (category.category_name ?? category.name) as string,
+          label: (category.category_name ?? category.name) as string,
+        };
+      });
+      const suppliers = toList(suppliersRaw).map((s: unknown) => {
+        const supplier = s as Record<string, unknown>;
+        return {
+          value: (supplier.supplier_name ?? supplier.name) as string,
+          label: (supplier.supplier_name ?? supplier.name) as string,
+        };
+      });
 
       return NextResponse.json(
         { brands, categories, suppliers },
@@ -136,25 +145,27 @@ export async function GET(req: NextRequest) {
 
     if (!upstream.ok) {
       console.error("[ingredient-price-list GET] Upstream error", upstream.status, data);
+      const errorData = data as Record<string, unknown>;
+      const errors = errorData?.errors as { message: string }[] | undefined;
       return NextResponse.json(
-        { message: data?.errors?.[0]?.message ?? data?.message ?? "Failed to fetch ingredients" },
+        { message: errors?.[0]?.message ?? errorData?.message ?? "Failed to fetch ingredients" },
         { status: upstream.status }
       );
     }
 
     // Directus wraps the list in { data: [] } — unwrap and normalize each row
-    const raw = Array.isArray(data) ? data : (data?.data ?? data?.content ?? []);
-    let list = raw.map(normalizeIngredient);
+    const rawData = (Array.isArray(data) ? data : ((data as Record<string, unknown>)?.data ?? (data as Record<string, unknown>)?.content ?? [])) as Record<string, unknown>[];
+    let list = rawData.map(normalizeIngredient);
 
     // Optional: Only return active ingredients directly from the backend to save bandwidth
-    list = list.filter((i: any) => Number(i.is_active) === 1 || i.is_active === true);
+    list = list.filter((i: Record<string, unknown>) => Number(i.is_active) === 1 || i.is_active === true);
 
     return NextResponse.json(list, {
       status: 200,
       headers: { "Cache-Control": "no-store" },
     });
-  } catch (err: any) {
-    console.error("[ingredient-price-list GET]", err?.message);
+  } catch (err: unknown) {
+    console.error("[ingredient-price-list GET]", (err as Error)?.message);
     return NextResponse.json(
       { message: "Server error. Please contact Administrator." },
       { status: 500 }
