@@ -40,6 +40,10 @@ const data = {
             items: 
             [
                 { 
+                    title: "Supplier Registration", 
+                    url: "/cafeteria/file-management/supplier-registration", 
+                },
+                { 
                     title: "Brand Registration", 
                     url: "/cafeteria/file-management/brand-registration", 
                 },
