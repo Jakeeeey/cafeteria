@@ -112,8 +112,8 @@ export async function GET(req: NextRequest) {
       // Fetch all FK lookup tables in parallel from Directus
       const [brandsRes, categoriesRes, unitsRes, suppliersRes] =
         await Promise.all([
-          proxyFetch(`${base}/items/brand`, { method: "GET", headers }),
-          proxyFetch(`${base}/items/categories`, { method: "GET", headers }),
+          proxyFetch(`${base}/items/brand?filter[is_cafeteria][_eq]=1`, { method: "GET", headers }),
+          proxyFetch(`${base}/items/categories?filter[is_cafeteria][_eq]=1`, { method: "GET", headers }),
           proxyFetch(`${base}/items/units`, { method: "GET", headers }),
           proxyFetch(`${base}/items/suppliers`, { method: "GET", headers }),
         ]);

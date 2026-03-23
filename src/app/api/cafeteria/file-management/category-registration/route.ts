@@ -84,7 +84,7 @@ export async function GET() {
     const base = baseUrl();
 
     const upstream = await proxyFetch(
-      `${base}/items/categories?fields=category_id,category_name,sku_code,is_cafeteria,created_by,created_at,updated_by,updated_at&sort=-created_at&limit=-1`,
+      `${base}/items/categories?fields=category_id,category_name,sku_code,is_cafeteria,created_by,created_at,updated_by,updated_at&filter[is_cafeteria][_eq]=1&sort=-created_at&limit=-1`,
       { method: "GET", headers }
     );
     const data = await parseJson(upstream);
