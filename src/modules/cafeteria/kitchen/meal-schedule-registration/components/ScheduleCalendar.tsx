@@ -97,8 +97,6 @@ function ScheduledMealCard({
 // ─── Drop cell (one day × one meal type) ─────────────────────────────────────
 
 function DropCell({
-  day: _day,
-  mealType: _mealType,
   entries,
   onDrop,
   onRemove,

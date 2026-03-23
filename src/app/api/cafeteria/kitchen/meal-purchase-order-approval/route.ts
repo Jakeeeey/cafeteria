@@ -39,7 +39,7 @@ async function proxyFetch(url: string, init: RequestInit): Promise<Response> {
     }
 }
 
-async function parseJson(res: Response): Promise<any> {
+async function parseJson(res: Response): Promise<unknown> {
     const text = await res.text();
     try {
         return text ? JSON.parse(text) : null;
@@ -48,11 +48,15 @@ async function parseJson(res: Response): Promise<any> {
     }
 }
 
-function toList(raw: any): any[] {
-    return Array.isArray(raw) ? raw : (raw?.data ?? raw?.content ?? []);
+function toList(raw: unknown): unknown[] {
+    if (Array.isArray(raw)) return raw;
+    const record = raw as Record<string, unknown>;
+    if (Array.isArray(record?.data)) return record.data;
+    if (Array.isArray(record?.content)) return record.content;
+    return [];
 }
 
-function decodeJwtPayload(token: string): any | null {
+function decodeJwtPayload(token: string): Record<string, unknown> | null {
     try {
         const parts = token.split(".");
         if (parts.length < 2) return null;
@@ -81,8 +85,10 @@ async function resolveUserId(req: NextRequest, base: string, headers: Record<str
             if (email) userQuery += `&filter[user_email][_eq]=${encodeURIComponent(email)}`;
             const userRes = await proxyFetch(userQuery, { method: "GET", headers });
             const userData = await parseJson(userRes);
-            const users = Array.isArray(userData) ? userData : (userData?.data ?? userData?.content ?? []);
-            if (users.length > 0 && users[0].user_id) userId = Number(users[0].user_id);
+            const userDataObj = userData as { data?: unknown[]; content?: unknown[] };
+            const users = Array.isArray(userData) ? userData : (userDataObj?.data ?? userDataObj?.content ?? []);
+            const firstUser = users[0] as Record<string, unknown> | undefined;
+            if (users.length > 0 && firstUser?.user_id) userId = Number(firstUser.user_id);
         } catch {
             // ignore
         }
@@ -93,10 +99,10 @@ async function resolveUserId(req: NextRequest, base: string, headers: Record<str
 
 // ─── Normalize a purchase order row ──────────────────────────────────────────
 function normalizePurchaseOrder(
-    raw: any,
+    raw: Record<string, unknown>,
     mealNames: string[] = [],
     mealCategories: string[] = []
-): any {
+): Record<string, unknown> {
     return {
         id: raw.id,
         date_from: raw.date_from,
@@ -111,10 +117,10 @@ function normalizePurchaseOrder(
 }
 
 // ─── Normalize a purchase order item row ─────────────────────────────────────
-function normalizePurchaseOrderItem(raw: any): any {
-    const ing = typeof raw.ingredient_id === "object" ? raw.ingredient_id : null;
+function normalizePurchaseOrderItem(raw: Record<string, unknown>): Record<string, unknown> {
+    const ing = typeof raw.ingredient_id === "object" && raw.ingredient_id !== null ? raw.ingredient_id as Record<string, unknown> : null;
     const unit =
-        ing && typeof ing.unit_of_measurement === "object" ? ing.unit_of_measurement : null;
+        ing && typeof ing.unit_of_measurement === "object" && ing.unit_of_measurement !== null ? ing.unit_of_measurement as Record<string, unknown> : null;
 
     return {
         id: raw.id,
@@ -166,24 +172,26 @@ export async function GET(req: NextRequest) {
 
                 if (!upstream.ok) {
                     console.error("[meal-purchase-order-approval GET schedules]", upstream.status, data);
+                    const errorData = data as { errors?: Array<{ message?: string }>; message?: string };
                     return NextResponse.json(
-                        { message: data?.errors?.[0]?.message ?? data?.message ?? "Failed to fetch schedule entries." },
+                        { message: errorData?.errors?.[0]?.message ?? errorData?.message ?? "Failed to fetch schedule entries." },
                         { status: upstream.status }
                     );
                 }
 
                 const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-                const list = toList(data).map((raw: any) => {
-                    const s = typeof raw.schedule_id === "object" ? raw.schedule_id : null;
-                    const meal = s && typeof s.meal_id === "object" ? s.meal_id : null;
-                    const scheduleDate: string = s?.schedule_date ?? "";
+                const list = toList(data).map((raw: unknown) => {
+                    const rawRecord = raw as Record<string, unknown>;
+                    const s = typeof rawRecord.schedule_id === "object" && rawRecord.schedule_id !== null ? rawRecord.schedule_id as Record<string, unknown> : null;
+                    const meal = s && typeof s.meal_id === "object" && s.meal_id !== null ? s.meal_id as Record<string, unknown> : null;
+                    const scheduleDate: string = (typeof s?.schedule_date === "string" ? s.schedule_date : "") ?? "";
                     let dayOfWeek = "";
                     if (scheduleDate) {
                         const d = new Date(scheduleDate);
                         dayOfWeek = DAY_NAMES[d.getUTCDay()] ?? "";
                     }
                     return {
-                        id: raw.id,
+                        id: rawRecord.id,
                         schedule_date: scheduleDate,
                         day_of_week: dayOfWeek,
                         meal_type: s?.meal_type ?? "Breakfast",
@@ -211,13 +219,14 @@ export async function GET(req: NextRequest) {
 
             if (!upstream.ok) {
                 console.error("[meal-purchase-order-approval GET items]", upstream.status, data);
+                const errorData = data as { errors?: Array<{ message?: string }>; message?: string };
                 return NextResponse.json(
-                    { message: data?.errors?.[0]?.message ?? data?.message ?? "Failed to fetch purchase order items." },
+                    { message: errorData?.errors?.[0]?.message ?? errorData?.message ?? "Failed to fetch purchase order items." },
                     { status: upstream.status }
                 );
             }
 
-            const list = toList(data).map(normalizePurchaseOrderItem);
+            const list = toList(data).map(item => normalizePurchaseOrderItem(item as Record<string, unknown>));
             return NextResponse.json(list, { headers: { "Cache-Control": "no-store" } });
         }
 
@@ -230,8 +239,9 @@ export async function GET(req: NextRequest) {
 
         if (!upstream.ok) {
             console.error("[meal-purchase-order-approval GET]", upstream.status, data);
+            const errorData = data as { errors?: Array<{ message?: string }>; message?: string };
             return NextResponse.json(
-                { message: data?.errors?.[0]?.message ?? data?.message ?? "Failed to fetch purchase orders." },
+                { message: errorData?.errors?.[0]?.message ?? errorData?.message ?? "Failed to fetch purchase orders." },
                 { status: upstream.status }
             );
         }
@@ -242,7 +252,7 @@ export async function GET(req: NextRequest) {
         }
 
         // ── Fetch meal info via junction → schedules → meals → category ─────
-        const poIds = rawPOs.map((po: any) => po.id).join(",");
+        const poIds = toList(data).map((po: unknown) => (po as Record<string, unknown>).id).join(",");
         const scheduleFields = [
             "purchase_order_id",
             "schedule_id.meal_id.name",
@@ -258,32 +268,36 @@ export async function GET(req: NextRequest) {
         // Build map: poId → { names, categories }
         const mealsByPO = new Map<number, { names: Set<string>; categories: Set<string> }>();
         for (const s of rawSchedules) {
+            const sRecord = s as Record<string, unknown>;
             const poId = Number(
-                typeof s.purchase_order_id === "object" ? s.purchase_order_id?.id : s.purchase_order_id
+                typeof sRecord.purchase_order_id === "object" && sRecord.purchase_order_id !== null
+                    ? (sRecord.purchase_order_id as Record<string, unknown>)?.id
+                    : sRecord.purchase_order_id
             );
-            const scheduleObj = typeof s.schedule_id === "object" ? s.schedule_id : null;
-            const mealObj = scheduleObj && typeof scheduleObj.meal_id === "object" ? scheduleObj.meal_id : null;
-            const mealName: string | null = mealObj?.name ?? null;
-            const categoryObj = mealObj && typeof mealObj.category_id === "object" ? mealObj.category_id : null;
-            const categoryName: string | null = categoryObj?.name ?? null;
+            const scheduleObj = typeof sRecord.schedule_id === "object" && sRecord.schedule_id !== null ? sRecord.schedule_id as Record<string, unknown> : null;
+            const mealObj = scheduleObj && typeof scheduleObj.meal_id === "object" && scheduleObj.meal_id !== null ? scheduleObj.meal_id as Record<string, unknown> : null;
+            const mealName: string | null = typeof mealObj?.name === "string" ? mealObj.name : null;
+            const categoryObj = mealObj && typeof mealObj.category_id === "object" && mealObj.category_id !== null ? mealObj.category_id as Record<string, unknown> : null;
+            const categoryName: string | null = typeof categoryObj?.name === "string" ? categoryObj.name : null;
 
             if (!mealsByPO.has(poId)) mealsByPO.set(poId, { names: new Set(), categories: new Set() });
             if (mealName) mealsByPO.get(poId)!.names.add(mealName);
             if (categoryName) mealsByPO.get(poId)!.categories.add(categoryName);
         }
 
-        const list = rawPOs.map((raw: any) => {
-            const info = mealsByPO.get(raw.id);
+        const list = rawPOs.map((raw: unknown) => {
+            const rawRecord = raw as Record<string, unknown>;
+            const info = mealsByPO.get(rawRecord.id as number);
             return normalizePurchaseOrder(
-                raw,
+                rawRecord,
                 info ? Array.from(info.names) : [],
                 info ? Array.from(info.categories) : []
             );
         });
 
         return NextResponse.json(list, { headers: { "Cache-Control": "no-store" } });
-    } catch (err: any) {
-        console.error("[meal-purchase-order-approval GET]", err?.message);
+    } catch (err: unknown) {
+        console.error("[meal-purchase-order-approval GET]", err instanceof Error ? err.message : err);
         return NextResponse.json(
             { message: "Server error. Please contact Administrator." },
             { status: 500 }
@@ -320,7 +334,7 @@ export async function PATCH(req: NextRequest) {
 
         const updated_by = await resolveUserId(req, base, headers);
 
-        const patchPayload: Record<string, any> = {
+        const patchPayload: Record<string, unknown> = {
             status: statusValue,
             updated_at: new Date().toISOString().replace("T", " ").substring(0, 19),
         };
@@ -335,15 +349,16 @@ export async function PATCH(req: NextRequest) {
 
         if (!patchRes.ok) {
             console.error("[meal-purchase-order-approval PATCH]", patchRes.status, patchData);
+            const errorData = patchData as { errors?: Array<{ message?: string }>; message?: string };
             return NextResponse.json(
-                { message: patchData?.errors?.[0]?.message ?? patchData?.message ?? "Failed to update purchase order." },
+                { message: errorData?.errors?.[0]?.message ?? errorData?.message ?? "Failed to update purchase order." },
                 { status: patchRes.status }
             );
         }
 
         return NextResponse.json({ ok: true }, { status: 200 });
-    } catch (err: any) {
-        console.error("[meal-purchase-order-approval PATCH]", err?.message);
+    } catch (err: unknown) {
+        console.error("[meal-purchase-order-approval PATCH]", err instanceof Error ? err.message : err);
         return NextResponse.json(
             { message: "Server error. Please contact Administrator." },
             { status: 500 }

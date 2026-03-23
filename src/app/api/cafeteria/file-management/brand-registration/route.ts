@@ -91,7 +91,7 @@ export async function GET() {
 
     if (!upstream.ok) {
       console.error("[brand-registration GET] Upstream error", upstream.status, data);
-      const errorData = data as any;
+      const errorData = data as { errors?: Array<{ message?: string }>; message?: string };
       return NextResponse.json(
         { message: errorData?.errors?.[0]?.message ?? errorData?.message ?? "Failed to fetch brands." },
         { status: upstream.status }
@@ -138,7 +138,7 @@ export async function POST(req: NextRequest) {
 
     if (!upstream.ok) {
       console.error("[brand-registration POST] Upstream error", upstream.status, data);
-      const errorData = data as any;
+      const errorData = data as { errors?: Array<{ message?: string }>; message?: string };
       return NextResponse.json(
         { message: errorData?.errors?.[0]?.message ?? errorData?.message ?? "Failed to create brand." },
         { status: upstream.status }
@@ -146,8 +146,8 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json(data ?? { ok: true }, { status: upstream.status });
-  } catch (err: any) {
-    console.error("[brand-registration POST]", err?.message);
+  } catch (err: unknown) {
+    console.error("[brand-registration POST]", err instanceof Error ? err.message : err);
     return NextResponse.json(
       { message: "Server error. Please contact Administrator." },
       { status: 500 }
@@ -185,7 +185,7 @@ export async function PUT(req: NextRequest) {
 
     if (!upstream.ok) {
       console.error("[brand-registration PUT] Upstream error", upstream.status, data);
-      const errorData = data as any;
+      const errorData = data as { errors?: Array<{ message?: string }>; message?: string };
       return NextResponse.json(
         { message: errorData?.errors?.[0]?.message ?? errorData?.message ?? "Failed to update brand." },
         { status: upstream.status }
@@ -193,8 +193,8 @@ export async function PUT(req: NextRequest) {
     }
 
     return NextResponse.json(data ?? { ok: true }, { status: upstream.status });
-  } catch (err: any) {
-    console.error("[brand-registration PUT]", err?.message);
+  } catch (err: unknown) {
+    console.error("[brand-registration PUT]", err instanceof Error ? err.message : err);
     return NextResponse.json(
       { message: "Server error. Please contact Administrator." },
       { status: 500 }
