@@ -6,13 +6,6 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 
 import CategoryTable from "./components/CategoryTable";
 import CategoryFormDialog from "./components/CategoryFormDialog";
@@ -23,10 +16,6 @@ import {
   updateCategory,
 } from "./providers/fetchProviders";
 import type { Category, CategoryFormValues } from "./types";
-
-const ALL = "__all__";
-const HAS_SKU = "has_sku";
-const NO_SKU = "no_sku";
 
 export default function CategoryRegistrationModule() {
   // ─ List state ─────────────────────────────────────────────────────────
@@ -43,7 +32,6 @@ export default function CategoryRegistrationModule() {
 
   // ─ Search + filter state ───────────────────────────────────────────────
   const [search, setSearch] = React.useState("");
-  const [skuFilter, setSkuFilter] = React.useState(ALL);
 
   // ─── Load categories ───────────────────────────────────────────────────────
   const loadCategories = React.useCallback(async () => {
@@ -105,27 +93,18 @@ export default function CategoryRegistrationModule() {
 
     const q = search.trim().toLowerCase();
     if (q) {
-      result = result.filter(
-        (c) =>
-          c.category_name.toLowerCase().includes(q) ||
-          (c.sku_code ?? "").toLowerCase().includes(q)
+      result = result.filter((c) =>
+        c.category_name.toLowerCase().includes(q)
       );
     }
 
-    if (skuFilter === HAS_SKU) {
-      result = result.filter((c) => c.sku_code != null && c.sku_code !== "");
-    } else if (skuFilter === NO_SKU) {
-      result = result.filter((c) => c.sku_code == null || c.sku_code === "");
-    }
-
     return result;
-  }, [categories, search, skuFilter]);
+  }, [categories, search]);
 
-  const hasFilters = search.trim() !== "" || skuFilter !== ALL;
+  const hasFilters = search.trim() !== "";
 
   function clearFilters() {
     setSearch("");
-    setSkuFilter(ALL);
   }
 
   // ─── Render ────────────────────────────────────────────────────────────────
@@ -165,21 +144,10 @@ export default function CategoryRegistrationModule() {
       <div className="flex flex-wrap items-center gap-2">
         <Input
           className="h-9 w-64"
-          placeholder="Search by name or SKU…"
+          placeholder="Search by name…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
-
-        <Select value={skuFilter} onValueChange={setSkuFilter}>
-          <SelectTrigger className="h-9 w-40">
-            <SelectValue placeholder="SKU Code" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={ALL}>All Categories</SelectItem>
-            <SelectItem value={HAS_SKU}>Has SKU Code</SelectItem>
-            <SelectItem value={NO_SKU}>No SKU Code</SelectItem>
-          </SelectContent>
-        </Select>
 
         {hasFilters && (
           <Button variant="ghost" size="sm" onClick={clearFilters}>

@@ -52,7 +52,6 @@ export default function CategoryViewDialog({
 
         <div className="flex flex-col gap-3 pt-2">
           <Row label="Category Name" value={category.category_name} />
-          <Row label="SKU Code" value={category.sku_code ?? "—"} />
           <Separator />
           <Row label="Created By" value={category.created_by ?? "—"} />
           <Row label="Created At" value={formatDate(category.created_at)} />

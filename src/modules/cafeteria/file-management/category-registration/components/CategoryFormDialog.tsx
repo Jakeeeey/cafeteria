@@ -30,7 +30,6 @@ import type { Category, CategoryFormValues } from "../types";
 
 const schema = z.object({
   category_name: z.string().min(1, "Category name is required").max(255),
-  sku_code: z.string().max(50).optional().default(""),
 });
 
 type FormSchema = z.infer<typeof schema>;
@@ -56,7 +55,7 @@ export default function CategoryFormDialog({
 
   const form = useForm<FormSchema>({
     resolver: zodResolver(schema),
-    defaultValues: { category_name: "", sku_code: "" },
+    defaultValues: { category_name: "" },
   });
 
   const { isSubmitting } = form.formState;
@@ -65,16 +64,15 @@ export default function CategoryFormDialog({
     if (open && editTarget) {
       form.reset({
         category_name: editTarget.category_name,
-        sku_code: editTarget.sku_code ?? "",
       });
     } else if (open && !editTarget) {
-      form.reset({ category_name: "", sku_code: "" });
+      form.reset({ category_name: "" });
     }
   }, [open, editTarget, form]);
 
   const handleSubmit = form.handleSubmit(async (values) => {
     await onSubmit(
-      { category_name: values.category_name, sku_code: values.sku_code ?? "" },
+      { category_name: values.category_name },
       editTarget?.category_id
     );
   });
@@ -99,21 +97,6 @@ export default function CategoryFormDialog({
                   </FormLabel>
                   <FormControl>
                     <Input placeholder="e.g. Beverages" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            {/* SKU Code */}
-            <FormField
-              control={form.control}
-              name="sku_code"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>SKU Code</FormLabel>
-                  <FormControl>
-                    <Input placeholder="e.g. BEV-001" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

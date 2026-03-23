@@ -30,7 +30,6 @@ import type { Brand, BrandFormValues } from "../types";
 
 const schema = z.object({
   brand_name: z.string().min(1, "Brand name is required").max(255),
-  sku_code: z.string().max(50).optional().default(""),
 });
 
 type FormSchema = z.infer<typeof schema>;
@@ -56,7 +55,7 @@ export default function BrandFormDialog({
 
   const form = useForm<FormSchema>({
     resolver: zodResolver(schema),
-    defaultValues: { brand_name: "", sku_code: "" },
+    defaultValues: { brand_name: "" },
   });
 
   const { isSubmitting } = form.formState;
@@ -65,16 +64,15 @@ export default function BrandFormDialog({
     if (open && editTarget) {
       form.reset({
         brand_name: editTarget.brand_name,
-        sku_code: editTarget.sku_code ?? "",
       });
     } else if (open && !editTarget) {
-      form.reset({ brand_name: "", sku_code: "" });
+      form.reset({ brand_name: "" });
     }
   }, [open, editTarget, form]);
 
   const handleSubmit = form.handleSubmit(async (values) => {
     await onSubmit(
-      { brand_name: values.brand_name, sku_code: values.sku_code ?? "" },
+      { brand_name: values.brand_name },
       editTarget?.brand_id
     );
   });
@@ -99,21 +97,6 @@ export default function BrandFormDialog({
                   </FormLabel>
                   <FormControl>
                     <Input placeholder="e.g. Nestle" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            {/* SKU Code */}
-            <FormField
-              control={form.control}
-              name="sku_code"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>SKU Code</FormLabel>
-                  <FormControl>
-                    <Input placeholder="e.g. NES-001" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

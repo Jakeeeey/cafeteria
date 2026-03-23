@@ -48,7 +48,11 @@ async function parseJson(res: Response): Promise<unknown> {
 }
 
 function toList(raw: unknown): unknown[] {
-  return Array.isArray(raw) ? raw : ((raw as Record<string, unknown>)?.data ?? (raw as Record<string, unknown>)?.content ?? []);
+  if (Array.isArray(raw)) return raw;
+  const obj = raw as Record<string, unknown>;
+  if (Array.isArray(obj?.data)) return obj.data;
+  if (Array.isArray(obj?.content)) return obj.content;
+  return [];
 }
 
 // ─── Decode vos_access_token JWT to extract the current user ─────────────────
@@ -87,8 +91,9 @@ export async function GET() {
 
     if (!upstream.ok) {
       console.error("[brand-registration GET] Upstream error", upstream.status, data);
+      const errorData = data as any;
       return NextResponse.json(
-        { message: data?.errors?.[0]?.message ?? data?.message ?? "Failed to fetch brands." },
+        { message: errorData?.errors?.[0]?.message ?? errorData?.message ?? "Failed to fetch brands." },
         { status: upstream.status }
       );
     }
@@ -133,8 +138,9 @@ export async function POST(req: NextRequest) {
 
     if (!upstream.ok) {
       console.error("[brand-registration POST] Upstream error", upstream.status, data);
+      const errorData = data as any;
       return NextResponse.json(
-        { message: data?.errors?.[0]?.message ?? data?.message ?? "Failed to create brand." },
+        { message: errorData?.errors?.[0]?.message ?? errorData?.message ?? "Failed to create brand." },
         { status: upstream.status }
       );
     }
@@ -179,8 +185,9 @@ export async function PUT(req: NextRequest) {
 
     if (!upstream.ok) {
       console.error("[brand-registration PUT] Upstream error", upstream.status, data);
+      const errorData = data as any;
       return NextResponse.json(
-        { message: data?.errors?.[0]?.message ?? data?.message ?? "Failed to update brand." },
+        { message: errorData?.errors?.[0]?.message ?? errorData?.message ?? "Failed to update brand." },
         { status: upstream.status }
       );
     }
