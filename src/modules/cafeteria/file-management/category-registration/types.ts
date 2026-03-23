@@ -15,5 +15,4 @@ export interface Category {
 
 export interface CategoryFormValues {
   category_name: string;
-  sku_code: string;
 }

@@ -60,7 +60,6 @@ export default function CategoryTable({
           <TableRow>
             <TableHead className="w-12 text-center">#</TableHead>
             <TableHead>Name</TableHead>
-            <TableHead>SKU Code</TableHead>
             <TableHead>Date</TableHead>
             <TableHead className="w-24 text-center">Actions</TableHead>
           </TableRow>
@@ -69,7 +68,7 @@ export default function CategoryTable({
           {isLoading ? (
             Array.from({ length: 5 }).map((_, i) => (
               <TableRow key={i}>
-                {Array.from({ length: 5 }).map((__, j) => (
+                {Array.from({ length: 4 }).map((__, j) => (
                   <TableCell key={j}>
                     <Skeleton className="h-4 w-full" />
                   </TableCell>
@@ -79,7 +78,7 @@ export default function CategoryTable({
           ) : categories.length === 0 ? (
             <TableRow>
               <TableCell
-                colSpan={5}
+                colSpan={4}
                 className="h-32 text-center text-muted-foreground"
               >
                 No categories registered yet.
@@ -92,9 +91,6 @@ export default function CategoryTable({
                   {(currentPage - 1) * itemsPerPage + index + 1}
                 </TableCell>
                 <TableCell className="font-medium">{row.category_name}</TableCell>
-                <TableCell className="text-muted-foreground">
-                  {row.sku_code ?? "—"}
-                </TableCell>
                 <TableCell className="text-muted-foreground">
                   {formatDate(row.created_at)}
                 </TableCell>
