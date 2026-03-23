@@ -108,7 +108,6 @@ export default function MealFormDialog({
   ingredients,
   onCreate,
   onUpdate,
-  optionsLoading,
 }: MealFormDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -167,6 +166,7 @@ function MealFormInner({
   });
 
   const { isSubmitting } = form.formState;
+  // eslint-disable-next-line react-hooks/incompatible-library
   const watchedIngredients = form.watch("ingredients");
   const watchedImage = form.watch("image");
   const [previewUrl, setPreviewUrl] = React.useState<string | null>(null);
@@ -256,13 +256,15 @@ function MealFormInner({
               <FormField
                 control={form.control}
                 name="image"
-                render={({ field: { value, onChange, ...field } }) => (
+                // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                render={({ field: { value: _value, onChange, ...field } }) => (
                   <FormItem>
                     <FormLabel>Image <span className="text-destructive">*</span></FormLabel>
                     <FormControl>
                       <div className="space-y-4">
                         {previewUrl && (
                           <div className="relative group aspect-video w-full max-w-[240px] overflow-hidden rounded-lg border-2 border-muted bg-muted shadow-sm">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img
                               src={previewUrl}
                               alt="Meal preview"

@@ -26,7 +26,7 @@ export interface Ingredient {
   unit?: string;
   measurement_unit?: string;
   measure?: string;
-  [key: string]: any; // Allow additional fields from API
+  [key: string]: unknown; // Allow additional fields from API
 }
 
 export interface MealIngredient {

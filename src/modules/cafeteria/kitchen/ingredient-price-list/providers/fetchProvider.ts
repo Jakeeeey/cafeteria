@@ -12,7 +12,8 @@ export async function fetchActiveIngredients(): Promise<Ingredient[]> {
     const data = Array.isArray(json) ? json : (json.data ?? json.content ?? [])
     
     // Only return active ingredients
-    return data.filter((i: any) => Number(i.is_active) === 1 || i.is_active === true)
+    // Only return active ingredients
+    return data.filter((i: Ingredient) => Number(i.is_active) === 1)
 }
 
 export async function fetchFilterOptions(): Promise<FilterOptions> {

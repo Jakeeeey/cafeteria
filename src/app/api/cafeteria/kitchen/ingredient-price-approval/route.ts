@@ -83,15 +83,15 @@ async function resolveUserId(req: NextRequest, base: string, headers: Record<str
             if (email) userQuery += `&filter[user_email][_eq]=${encodeURIComponent(email)}`;
 
             const userRes = await proxyFetch(userQuery, { method: "GET", headers });
-            const userData = await parseJson(userRes);
-            const users = Array.isArray(userData) ? userData : (userData?.data ?? userData?.content ?? []);
+            const userData = await parseJson(userRes) as Record<string, unknown>;
+            const users = (Array.isArray(userData) ? userData : (userData?.data ?? userData?.content ?? [])) as Record<string, unknown>[];
 
             if (users.length > 0 && users[0].user_id) {
                 userId = Number(users[0].user_id);
             } else {
                 const fbRes = await proxyFetch(`${base}/items/user?fields=user_id&limit=1`, { method: "GET", headers });
-                const fbData = await parseJson(fbRes);
-                const fbUsers = Array.isArray(fbData) ? fbData : (fbData?.data ?? fbData?.content ?? []);
+                const fbData = await parseJson(fbRes) as Record<string, unknown>;
+                const fbUsers = (Array.isArray(fbData) ? fbData : (fbData?.data ?? fbData?.content ?? [])) as Record<string, unknown>[];
                 if (fbUsers.length > 0 && fbUsers[0].user_id) userId = Number(fbUsers[0].user_id);
             }
         } catch {
@@ -144,25 +144,26 @@ export async function GET() {
             `${base}/items/ingredient_price_requests?fields=*,ingredient_id.*,ingredient_id.unit_of_measurement.*,ingredient_id.supplier.*,requested_by.*&filter[status][_eq]=pending&sort=-requested_at`,
             { method: "GET", headers }
         );
-        const data = await parseJson(upstream);
+        const data = await parseJson(upstream) as Record<string, unknown>;
 
         if (!upstream.ok) {
             console.error("[ingredient-price-approval GET] Upstream error", upstream.status, data);
+            const errors = data?.errors as { message: string }[] | undefined;
             return NextResponse.json(
-                { message: data?.errors?.[0]?.message ?? data?.message ?? "Failed to fetch price requests." },
+                { message: errors?.[0]?.message ?? data?.message ?? "Failed to fetch price requests." },
                 { status: upstream.status }
             );
         }
 
-        const raw = Array.isArray(data) ? data : (data?.data ?? data?.content ?? []);
+        const raw = (Array.isArray(data) ? data : (data?.data ?? data?.content ?? [])) as Record<string, unknown>[];
         const list = raw.map(normalizeRequest);
 
         return NextResponse.json(list, {
             status: 200,
             headers: { "Cache-Control": "no-store" },
         });
-    } catch (err: any) {
-        console.error("[ingredient-price-approval GET]", err?.message);
+    } catch (err: unknown) {
+        console.error("[ingredient-price-approval GET]", (err as Error)?.message);
         return NextResponse.json(
             { message: "Server error. Please contact Administrator." },
             { status: 500 }
@@ -206,19 +207,20 @@ export async function PATCH(req: NextRequest) {
             `${base}/items/ingredient_price_requests/${id}?fields=id,ingredient_id,new_cost,status`,
             { method: "GET", headers }
         );
-        const fetchData = await parseJson(fetchRes);
+        const fetchData = await parseJson(fetchRes) as Record<string, unknown>;
 
         if (!fetchRes.ok || !fetchData) {
+            const errors = fetchData?.errors as { message: string }[] | undefined;
             return NextResponse.json(
-                { message: fetchData?.errors?.[0]?.message ?? "Price request not found." },
+                { message: errors?.[0]?.message ?? "Price request not found." },
                 { status: fetchRes.status }
             );
         }
 
-        const existingRequest = fetchData?.data ?? fetchData;
+        const existingRequest = (fetchData?.data ?? fetchData) as Record<string, unknown>;
 
         // 2. Patch the price request record
-        const patchPayload: Record<string, any> = {
+        const patchPayload: Record<string, unknown> = {
             status: action,
             processed_by: processed_by || null,
             processed_at: new Date().toISOString(),
@@ -229,12 +231,13 @@ export async function PATCH(req: NextRequest) {
             `${base}/items/ingredient_price_requests/${id}`,
             { method: "PATCH", headers, body: JSON.stringify(patchPayload) }
         );
-        const patchData = await parseJson(patchRes);
+        const patchData = await parseJson(patchRes) as Record<string, unknown>;
 
         if (!patchRes.ok) {
             console.error("[ingredient-price-approval PATCH] Upstream error", patchRes.status, patchData);
+            const errors = patchData?.errors as { message: string }[] | undefined;
             return NextResponse.json(
-                { message: patchData?.errors?.[0]?.message ?? patchData?.message ?? "Failed to process price request." },
+                { message: errors?.[0]?.message ?? patchData?.message ?? "Failed to process price request." },
                 { status: patchRes.status }
             );
         }
@@ -242,7 +245,7 @@ export async function PATCH(req: NextRequest) {
         // 3. If approved, update the ingredient's cost_per_unit and recalculate pending PO items
         if (action === "approved") {
             const ingredientId = typeof existingRequest.ingredient_id === "object"
-                ? existingRequest.ingredient_id?.id
+                ? (existingRequest.ingredient_id as Record<string, unknown>)?.id
                 : existingRequest.ingredient_id;
 
             const newCost = Number(existingRequest.new_cost ?? 0);
@@ -274,14 +277,14 @@ export async function PATCH(req: NextRequest) {
                 );
 
                 if (poItemsRes.ok) {
-                    const poItemsData = await parseJson(poItemsRes);
-                    const poItems: any[] = Array.isArray(poItemsData) ? poItemsData : (poItemsData?.data ?? poItemsData?.content ?? []);
+                    const poItemsData = await parseJson(poItemsRes) as Record<string, unknown>;
+                    const poItems = (Array.isArray(poItemsData) ? poItemsData : (poItemsData?.data ?? poItemsData?.content ?? [])) as Record<string, unknown>[];
 
                     const affectedPOIds = new Set<number>();
 
                     for (const item of poItems) {
                         const poId = typeof item.purchase_order_id === "object"
-                            ? Number(item.purchase_order_id?.id)
+                            ? Number((item.purchase_order_id as Record<string, unknown>)?.id)
                             : Number(item.purchase_order_id);
                         const newEstimatedCost = newCost * Number(item.required_quantity ?? 0);
 
@@ -300,9 +303,9 @@ export async function PATCH(req: NextRequest) {
                             { method: "GET", headers }
                         );
                         if (allItemsRes.ok) {
-                            const allItemsData = await parseJson(allItemsRes);
-                            const allItems: any[] = Array.isArray(allItemsData) ? allItemsData : (allItemsData?.data ?? allItemsData?.content ?? []);
-                            const newTotal = allItems.reduce((sum: number, i: any) => sum + Number(i.estimated_cost ?? 0), 0);
+                            const allItemsData = await parseJson(allItemsRes) as Record<string, unknown>;
+                            const allItems = (Array.isArray(allItemsData) ? allItemsData : (allItemsData?.data ?? allItemsData?.content ?? [])) as Record<string, unknown>[];
+                            const newTotal = allItems.reduce((sum: number, i: Record<string, unknown>) => sum + Number(i.estimated_cost ?? 0), 0);
                             await proxyFetch(
                                 `${base}/items/meal_purchase_orders/${poId}`,
                                 { method: "PATCH", headers, body: JSON.stringify({ total_estimated_cost: newTotal.toFixed(4) }) }
@@ -314,8 +317,8 @@ export async function PATCH(req: NextRequest) {
         }
 
         return NextResponse.json(patchData ?? { ok: true }, { status: 200 });
-    } catch (err: any) {
-        console.error("[ingredient-price-approval PATCH]", err?.message);
+    } catch (err: unknown) {
+        console.error("[ingredient-price-approval PATCH]", (err as Error)?.message);
         return NextResponse.json(
             { message: "Server error. Please contact Administrator." },
             { status: 500 }
