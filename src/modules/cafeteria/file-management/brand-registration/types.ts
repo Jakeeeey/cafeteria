@@ -15,5 +15,4 @@ export interface Brand {
 
 export interface BrandFormValues {
   brand_name: string;
-  sku_code: string;
 }

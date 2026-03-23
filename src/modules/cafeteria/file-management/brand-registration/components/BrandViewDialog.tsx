@@ -52,7 +52,6 @@ export default function BrandViewDialog({
 
         <div className="flex flex-col gap-3 pt-2">
           <Row label="Brand Name" value={brand.brand_name} />
-          <Row label="SKU Code" value={brand.sku_code ?? "—"} />
           <Separator />
           <Row label="Created By" value={brand.created_by ?? "—"} />
           <Row label="Created At" value={formatDate(brand.created_at)} />

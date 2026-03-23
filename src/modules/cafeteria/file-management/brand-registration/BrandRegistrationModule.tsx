@@ -6,23 +6,12 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 
 import BrandTable from "./components/BrandTable";
 import BrandFormDialog from "./components/BrandFormDialog";
 import BrandViewDialog from "./components/BrandViewDialog";
 import { fetchBrands, createBrand, updateBrand } from "./providers/fetchProviders";
 import type { Brand, BrandFormValues } from "./types";
-
-const ALL = "__all__";
-const HAS_SKU = "has_sku";
-const NO_SKU = "no_sku";
 
 export default function BrandRegistrationModule() {
   // ─ List state ─────────────────────────────────────────────────────────
@@ -39,7 +28,6 @@ export default function BrandRegistrationModule() {
 
   // ─ Search + filter state ───────────────────────────────────────────────
   const [search, setSearch] = React.useState("");
-  const [skuFilter, setSkuFilter] = React.useState(ALL);
 
   // ─── Load brands ───────────────────────────────────────────────────────────
   const loadBrands = React.useCallback(async () => {
@@ -98,27 +86,18 @@ export default function BrandRegistrationModule() {
 
     const q = search.trim().toLowerCase();
     if (q) {
-      result = result.filter(
-        (b) =>
-          b.brand_name.toLowerCase().includes(q) ||
-          (b.sku_code ?? "").toLowerCase().includes(q)
+      result = result.filter((b) =>
+        b.brand_name.toLowerCase().includes(q)
       );
     }
 
-    if (skuFilter === HAS_SKU) {
-      result = result.filter((b) => b.sku_code != null && b.sku_code !== "");
-    } else if (skuFilter === NO_SKU) {
-      result = result.filter((b) => b.sku_code == null || b.sku_code === "");
-    }
-
     return result;
-  }, [brands, search, skuFilter]);
+  }, [brands, search]);
 
-  const hasFilters = search.trim() !== "" || skuFilter !== ALL;
+  const hasFilters = search.trim() !== "";
 
   function clearFilters() {
     setSearch("");
-    setSkuFilter(ALL);
   }
 
   // ─── Render ────────────────────────────────────────────────────────────────
@@ -158,21 +137,10 @@ export default function BrandRegistrationModule() {
       <div className="flex flex-wrap items-center gap-2">
         <Input
           className="h-9 w-64"
-          placeholder="Search by name or SKU…"
+          placeholder="Search by name…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
-
-        <Select value={skuFilter} onValueChange={setSkuFilter}>
-          <SelectTrigger className="h-9 w-40">
-            <SelectValue placeholder="SKU Code" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={ALL}>All Brands</SelectItem>
-            <SelectItem value={HAS_SKU}>Has SKU Code</SelectItem>
-            <SelectItem value={NO_SKU}>No SKU Code</SelectItem>
-          </SelectContent>
-        </Select>
 
         {hasFilters && (
           <Button variant="ghost" size="sm" onClick={clearFilters}>
