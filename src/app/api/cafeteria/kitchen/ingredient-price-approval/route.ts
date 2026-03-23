@@ -47,6 +47,44 @@ async function parseJson(res: Response): Promise<unknown> {
     }
 }
 
+type DirectusListEnvelope<T> = { data?: T[]; content?: T[] } | null | undefined;
+
+function toList<T = Record<string, unknown>>(raw: unknown): T[] {
+    if (Array.isArray(raw)) return raw as T[];
+    const record = raw as DirectusListEnvelope<T>;
+    if (Array.isArray(record?.data)) return record!.data!;
+    if (Array.isArray(record?.content)) return record!.content!;
+    return [];
+}
+
+type DirectusItemEnvelope<T> = { data?: T } | null | undefined;
+
+function unwrapItem<T>(raw: unknown): T {
+    const envelope = raw as DirectusItemEnvelope<T> | T;
+    if (envelope && typeof envelope === "object") {
+        const withData = envelope as DirectusItemEnvelope<T>;
+        if (withData && typeof withData === "object" && withData.data !== undefined) {
+            return withData.data;
+        }
+    }
+    return raw as T;
+}
+
+type DirectusUser = { user_id?: number | string | null } & Record<string, unknown>;
+
+type IngredientPriceRequest = {
+    ingredient_id?: number | { id?: number };
+    new_cost?: number | string | null;
+    status?: string;
+} & Record<string, unknown>;
+
+type PurchaseOrderItemRecord = {
+    id?: number;
+    purchase_order_id?: number | { id?: number };
+    required_quantity?: number | string | null;
+    estimated_cost?: number | string | null;
+} & Record<string, unknown>;
+
 function decodeJwtPayload(token: string): Record<string, unknown> | null {
     try {
         const parts = token.split(".");
@@ -84,15 +122,17 @@ async function resolveUserId(req: NextRequest, base: string, headers: Record<str
 
             const userRes = await proxyFetch(userQuery, { method: "GET", headers });
             const userData = await parseJson(userRes);
-            const users = Array.isArray(userData) ? userData : (userData?.data ?? userData?.content ?? []);
+            const users = toList<DirectusUser>(userData);
 
-            if (users.length > 0 && users[0].user_id) {
-                userId = Number(users[0].user_id);
+            const firstUser = users[0];
+            if (firstUser && firstUser.user_id != null) {
+                userId = Number(firstUser.user_id);
             } else {
                 const fbRes = await proxyFetch(`${base}/items/user?fields=user_id&limit=1`, { method: "GET", headers });
                 const fbData = await parseJson(fbRes);
-                const fbUsers = Array.isArray(fbData) ? fbData : (fbData?.data ?? fbData?.content ?? []);
-                if (fbUsers.length > 0 && fbUsers[0].user_id) userId = Number(fbUsers[0].user_id);
+                const fbUsers = toList<DirectusUser>(fbData);
+                const fbFirstUser = fbUsers[0];
+                if (fbFirstUser && fbFirstUser.user_id != null) userId = Number(fbFirstUser.user_id);
             }
         } catch {
             // ignore
@@ -148,14 +188,14 @@ export async function GET() {
 
         if (!upstream.ok) {
             console.error("[ingredient-price-approval GET] Upstream error", upstream.status, data);
-            const errorData = data as Record<string, unknown>;
+            const errorData = data as { message?: string; errors?: Array<{ message?: string }> };
             return NextResponse.json(
                 { message: errorData?.errors?.[0]?.message ?? errorData?.message ?? "Failed to fetch price requests." },
                 { status: upstream.status }
             );
         }
 
-        const raw = Array.isArray(data) ? data : (data?.data ?? data?.content ?? []);
+        const raw = toList<Record<string, unknown>>(data);
         const list = raw.map(normalizeRequest);
 
         return NextResponse.json(list, {
@@ -210,14 +250,14 @@ export async function PATCH(req: NextRequest) {
         const fetchData = await parseJson(fetchRes);
 
         if (!fetchRes.ok || !fetchData) {
-            const errorData = fetchData as Record<string, unknown>;
+            const errorData = fetchData as { message?: string; errors?: Array<{ message?: string }> };
             return NextResponse.json(
                 { message: errorData?.errors?.[0]?.message ?? "Price request not found." },
                 { status: fetchRes.status }
             );
         }
 
-        const existingRequest = fetchData?.data ?? fetchData;
+        const existingRequest = unwrapItem<IngredientPriceRequest>(fetchData);
 
         // 2. Patch the price request record
         const patchPayload: Record<string, unknown> = {
@@ -235,7 +275,7 @@ export async function PATCH(req: NextRequest) {
 
         if (!patchRes.ok) {
             console.error("[ingredient-price-approval PATCH] Upstream error", patchRes.status, patchData);
-            const errorData = patchData as Record<string, unknown>;
+            const errorData = patchData as { message?: string; errors?: Array<{ message?: string }> };
             return NextResponse.json(
                 { message: errorData?.errors?.[0]?.message ?? errorData?.message ?? "Failed to process price request." },
                 { status: patchRes.status }
@@ -278,8 +318,7 @@ export async function PATCH(req: NextRequest) {
 
                 if (poItemsRes.ok) {
                     const poItemsData = await parseJson(poItemsRes);
-                    const poItemsDataRecord = poItemsData as Record<string, unknown>;
-                    const poItems: Record<string, unknown>[] = Array.isArray(poItemsData) ? poItemsData : (poItemsDataRecord?.data ?? poItemsDataRecord?.content ?? []);
+                    const poItems = toList<PurchaseOrderItemRecord>(poItemsData);
 
                     const affectedPOIds = new Set<number>();
 
@@ -305,9 +344,8 @@ export async function PATCH(req: NextRequest) {
                         );
                         if (allItemsRes.ok) {
                             const allItemsData = await parseJson(allItemsRes);
-                            const allItemsDataRecord = allItemsData as Record<string, unknown>;
-                            const allItems: Record<string, unknown>[] = Array.isArray(allItemsData) ? allItemsData : (allItemsDataRecord?.data ?? allItemsDataRecord?.content ?? []);
-                            const newTotal = allItems.reduce((sum: number, i: Record<string, unknown>) => sum + Number(i.estimated_cost ?? 0), 0);
+                            const allItems = toList<PurchaseOrderItemRecord>(allItemsData);
+                            const newTotal = allItems.reduce((sum: number, i: PurchaseOrderItemRecord) => sum + Number(i.estimated_cost ?? 0), 0);
                             await proxyFetch(
                                 `${base}/items/meal_purchase_orders/${poId}`,
                                 { method: "PATCH", headers, body: JSON.stringify({ total_estimated_cost: newTotal.toFixed(4) }) }
