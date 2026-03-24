@@ -7,6 +7,7 @@ import {
   SortingState,
   VisibilityState,
   flexRender,
+  Column,
   getCoreRowModel,
   getFilteredRowModel,
   getPaginationRowModel,
@@ -270,8 +271,8 @@ export function DataTable<TData, TValue>({
             <DropdownMenuContent align="end" className="w-[150px]">
               {table
                 .getAllColumns()
-                .filter((column) => column.getCanHide())
-                .map((column) => {
+                .filter((column: Column<TData, unknown>) => column.getCanHide())
+                .map((column: Column<TData, unknown>) => {
                   return (
                     <DropdownMenuCheckboxItem
                       key={column.id}
