@@ -56,7 +56,7 @@ type FieldErrors = {
     hashPassword?: string
 }
 
-export default function LoginPage() {
+function LoginForm() {
     const router = useRouter()
     const searchParams = useSearchParams()
 
@@ -273,5 +273,13 @@ export default function LoginPage() {
                 </div>
             </div>
         </div>
+    )
+}
+
+export default function LoginPage() {
+    return (
+        <React.Suspense fallback={null}>
+            <LoginForm />
+        </React.Suspense>
     )
 }
