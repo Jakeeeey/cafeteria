@@ -56,7 +56,7 @@ type FieldErrors = {
     hashPassword?: string
 }
 
-export default function LoginPage() {
+function LoginForm() {
     const router = useRouter()
     const searchParams = useSearchParams()
 
@@ -108,8 +108,8 @@ export default function LoginPage() {
             const next = searchParams.get("next") || "/main-dashboard"
             router.replace(next)
             router.refresh()
-        } catch (err: any) {
-            const raw = err?.message ? String(err.message) : "Network error. Please try again."
+        } catch (err: unknown) {
+            const raw = (err as Error)?.message ? String((err as Error).message) : "Network error. Please try again."
             const msg = normalizeLoginErrorMessage(raw)
             toast.error("Sign in failed", { description: msg })
         } finally {
@@ -273,5 +273,13 @@ export default function LoginPage() {
                 </div>
             </div>
         </div>
+    )
+}
+
+export default function LoginPage() {
+    return (
+        <React.Suspense fallback={null}>
+            <LoginForm />
+        </React.Suspense>
     )
 }
