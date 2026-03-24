@@ -62,7 +62,6 @@ export default function IngredientTable({
             <TableHead>Unit of Measurement</TableHead>
             <TableHead className="text-right">Unit</TableHead>
             <TableHead className="text-right">Cost per Unit</TableHead>
-            <TableHead className="hidden lg:table-cell text-right">Total Amount</TableHead>
             <TableHead className="text-center">Status</TableHead>
             <TableHead className="hidden lg:table-cell text-center">Shelf Life</TableHead>
             <TableHead className="w-24 text-center">Action</TableHead>
@@ -130,12 +129,6 @@ export default function IngredientTable({
                 </TableCell>
                 <TableCell className="text-right tabular-nums">
                   ₱{Number(row.cost_per_unit ?? 0).toLocaleString(undefined, {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 4,
-                  })}
-                </TableCell>
-                <TableCell className="hidden lg:table-cell text-right tabular-nums">
-                  ₱{(Number(row.cost_per_unit ?? 0) * Number(row.unit_count)).toLocaleString(undefined, {
                     minimumFractionDigits: 2,
                     maximumFractionDigits: 4,
                   })}

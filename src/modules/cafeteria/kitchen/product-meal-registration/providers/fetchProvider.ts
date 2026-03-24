@@ -1,4 +1,4 @@
-import type { Meal, MealCategory, Ingredient, CreateMealRequest, UpdateMealRequest, MealWithIngredients } from "../types";
+import type { MealCategory, Ingredient, CreateMealRequest, UpdateMealRequest, MealWithIngredients } from "../types";
 
 const BASE = "/api/cafeteria/kitchen/product-meal-registration";
 
@@ -16,11 +16,11 @@ export async function fetchMeals(): Promise<MealWithIngredients[]> {
   // meal_ingredients/ingredients at all
   console.debug("[fetchMeals] raw data:", data);
 
-  return (data as any[]).map((m) => {
-    let rawIngredients: any = m.ingredients || m.meal_ingredients || [];
+  return (data as Record<string, unknown>[]).map((m) => {
+    let rawIngredients: unknown = m.ingredients || m.meal_ingredients || [];
     // Directus may wrap relational arrays in a `{ data: [...] }` object
-    if (rawIngredients && !Array.isArray(rawIngredients) && rawIngredients.data) {
-      rawIngredients = rawIngredients.data;
+    if (rawIngredients && typeof rawIngredients === "object" && !Array.isArray(rawIngredients) && "data" in (rawIngredients as Record<string, unknown>)) {
+      rawIngredients = (rawIngredients as Record<string, unknown>).data;
     }
     // final guard – ensure we have an array
     if (!Array.isArray(rawIngredients)) rawIngredients = [];
@@ -28,12 +28,12 @@ export async function fetchMeals(): Promise<MealWithIngredients[]> {
     return {
       ...m,
       cost_per_serving: Number(m.cost_per_serving) || 0,
-      ingredients: rawIngredients.map((ing: any) => {
-        const ingData = ing.ingredient || {};
+      ingredients: (rawIngredients as Record<string, unknown>[]).map((ing: Record<string, unknown>) => {
+        const ingData = (ing.ingredient || {}) as Record<string, unknown>;
         const unitOfMeasurement = ingData.unit_of_measurement;
         const unit =
-          (typeof unitOfMeasurement === "object"
-            ? unitOfMeasurement?.unit_name || unitOfMeasurement?.name || unitOfMeasurement?.abbreviation
+          (typeof unitOfMeasurement === "object" && unitOfMeasurement !== null
+            ? (unitOfMeasurement as Record<string, unknown>)?.unit_name || (unitOfMeasurement as Record<string, unknown>)?.name || (unitOfMeasurement as Record<string, unknown>)?.abbreviation
             : null) ||
           ingData.unit ||
           ingData.unit_name ||
@@ -57,7 +57,7 @@ export async function fetchMeals(): Promise<MealWithIngredients[]> {
           },
         };
       }),
-    };
+    } as unknown as MealWithIngredients;
   });
 }
 
@@ -87,11 +87,11 @@ export async function fetchIngredients(): Promise<Ingredient[]> {
 
   // keep same normalization as before (unit field) in case the other route
   // does not already supply it.
-  return ingredients.map((ing: any) => {
+  return (ingredients as Record<string, unknown>[]).map((ing: Record<string, unknown>) => {
     const unitOfMeasurement = ing.unit_of_measurement;
     const unit =
-      (typeof unitOfMeasurement === "object"
-        ? unitOfMeasurement?.unit_name || unitOfMeasurement?.name || unitOfMeasurement?.abbreviation
+      (typeof unitOfMeasurement === "object" && unitOfMeasurement !== null
+        ? (unitOfMeasurement as Record<string, unknown>)?.unit_name || (unitOfMeasurement as Record<string, unknown>)?.name || (unitOfMeasurement as Record<string, unknown>)?.abbreviation
         : null) ||
       ing.unit ||
       ing.unit_name ||
@@ -110,7 +110,7 @@ export async function fetchIngredients(): Promise<Ingredient[]> {
     return {
       ...ing,
       unit,
-    };
+    } as unknown as Ingredient;
   });
 }
 

@@ -107,8 +107,7 @@ export function generateUid(): string {
 export function buildSubmitPayload(
   schedule: WeeklySchedule,
   weekDates: Record<DayOfWeek, string>,
-  userId: number,
-  _createdBy: number | null
+  userId: number
 ): {
   scheduleItems: ScheduleSubmitItem[];
   poItems: PoItem[];

@@ -45,7 +45,7 @@ async function proxyFetch(
   }
 }
 
-async function parseJson(res: Response): Promise<any> {
+async function parseJson(res: Response): Promise<unknown> {
   const text = await res.text();
   try {
     return text ? JSON.parse(text) : null;
@@ -70,7 +70,7 @@ export async function GET(request: NextRequest) {
         const error = await parseJson(res);
         return NextResponse.json(error, { status: res.status });
       }
-      const data = await parseJson(res);
+      const data = await parseJson(res) as Record<string, unknown>;
       return NextResponse.json(data.data || []);
     }
 
@@ -86,7 +86,7 @@ export async function GET(request: NextRequest) {
         const error = await parseJson(res);
         return NextResponse.json(error, { status: res.status });
       }
-      const data = await parseJson(res);
+      const data = await parseJson(res) as Record<string, unknown>;
       return NextResponse.json(data.data || []);
     }
 
@@ -107,29 +107,31 @@ export async function GET(request: NextRequest) {
       method: "GET",
       headers: authHeaders(),
     });
-    const catData = await parseJson(catRes);
-    const cats = (catData?.data || []) as any[];
+    const catData = await parseJson(catRes) as Record<string, unknown>;
+    const cats = (catData?.data || []) as Record<string, unknown>[];
 
-    const mealIds = (data.data || []).map((m: any) => Number(m.id));
+    const mealData = data as Record<string, unknown>;
+    const mealIds = ((mealData.data || []) as Record<string, unknown>[]).map((m) => Number(m.id));
     console.log("[GET] Looking for ingredients for meals:", mealIds);
 
-    let ingredientMap: Record<number, any[]> = {};
+    const ingredientMap: Record<number, Record<string, unknown>[]> = {};
     if (mealIds.length > 0) {
       // Use *.* to expand all first-level relations automatically
       const ingrRes = await proxyFetch(
         `${baseUrl()}/items/meal_ingredients?fields=*.*&filter[meal_id][_in]=${mealIds.join(",")}&limit=-1`,
         { method: "GET", headers: authHeaders() }
       );
-      const ingrData = await parseJson(ingrRes);
-      const allIngrList = Array.isArray(ingrData)
+      const ingrData = await parseJson(ingrRes) as Record<string, unknown>;
+      const allIngrList = (Array.isArray(ingrData)
         ? ingrData
-        : (ingrData?.data ?? ingrData?.content ?? []);
+        : (ingrData?.data ?? ingrData?.content ?? [])) as Record<string, unknown>[];
 
       console.log(`[GET] Received ${allIngrList.length} ingredient records from Directus`);
 
-      allIngrList.forEach((rec: any) => {
+      allIngrList.forEach((rec: Record<string, unknown>) => {
         // Directus might return meal_id as a number, a string, or an object
-        const mid = rec.meal_id?.id ?? rec.meal_id;
+        const meal_id_obj = rec.meal_id as Record<string, unknown> | null;
+        const mid = meal_id_obj?.id ?? rec.meal_id;
         const midNum = Number(mid);
 
         if (!isNaN(midNum)) {
@@ -141,7 +143,7 @@ export async function GET(request: NextRequest) {
 
           const mapped = {
             ...rec,
-            ingredient_id: typeof ingredientObj === "object" ? ingredientObj.id : (rec.ingredient_id ?? rec.ingredient),
+            ingredient_id: typeof ingredientObj === "object" && ingredientObj !== null ? (ingredientObj as Record<string, unknown>).id : (rec.ingredient_id ?? rec.ingredient),
             ingredient: typeof ingredientObj === "object" ? ingredientObj : null
           };
           ingredientMap[midNum].push(mapped);
@@ -149,8 +151,8 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    const rawMeals = (data.data || []);
-    const meals = rawMeals.map((meal: any) => {
+    const rawMeals = ((data as Record<string, unknown>).data || []) as Record<string, unknown>[];
+    const meals = rawMeals.map((meal: Record<string, unknown>) => {
       const mid = Number(meal.id);
       const category = meal.category || cats.find((c) => Number(c.id) === Number(meal.category_id)) || null;
       const ingr = ingredientMap[mid] || [];
@@ -162,10 +164,10 @@ export async function GET(request: NextRequest) {
       };
     });
     return NextResponse.json(meals);
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("GET error:", err);
     return NextResponse.json(
-      { message: err?.message ?? "Internal server error" },
+      { message: (err as Error)?.message ?? "Internal server error" },
       { status: 500 }
     );
   }
@@ -175,7 +177,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const contentType = request.headers.get("content-type") || "";
-    let body: any;
+    let body: Record<string, unknown>;
     let imageFile: File | null = null;
 
     if (contentType.includes("multipart/form-data")) {
@@ -186,12 +188,12 @@ export async function POST(request: NextRequest) {
         serving: parseInt(formData.get("serving") as string),
         cost_per_serving: parseFloat(formData.get("cost_per_serving") as string) || 0,
         category_id: formData.get("category_id") ? parseInt(formData.get("category_id") as string) : null,
-        ingredients: JSON.parse(formData.get("ingredients") as string),
+        ingredients: JSON.parse(formData.get("ingredients") as string) as Record<string, unknown>[],
       };
       const maybeImage = formData.get("image");
       imageFile = maybeImage instanceof File && maybeImage.size > 0 ? maybeImage : null;
     } else {
-      body = await request.json();
+      body = await request.json() as Record<string, unknown>;
       imageFile = null;
     }
 
@@ -220,7 +222,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(error, { status: uploadRes.status });
       }
 
-      const uploadData = await parseJson(uploadRes);
+      const uploadData = await parseJson(uploadRes) as Record<string, { id: string }>;
       // Store just the UUID if it's a File field, but we'll stick to the current path-style for now 
       // as it was already using it. However, if the field is a File type, it should be just the ID.
       // Based on common patterns in this project, it seems it expects the asset path.
@@ -247,9 +249,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(error, { status: mealRes.status });
     }
 
-    const meal = await parseJson(mealRes);
+    const meal = await parseJson(mealRes) as Record<string, unknown>;
     console.log("[POST] Directus Meal Creation Response:", JSON.stringify(meal));
-    const mealId = meal?.data?.id ?? meal?.id;
+    const mealDataObj = meal?.data as Record<string, unknown> | null;
+    const mealId = mealDataObj?.id ?? meal?.id;
 
     if (!mealId) {
       console.error("[POST] API failed to return a meal ID:", meal);
@@ -258,14 +261,14 @@ export async function POST(request: NextRequest) {
 
     console.log("[POST] Created Meal ID:", mealId);
 
-    if (ingredients && ingredients.length > 0) {
-      const payload = ingredients.map((ing: any) => ({
+    if (ingredients && (ingredients as Record<string, unknown>[]).length > 0) {
+      const payload = (ingredients as Record<string, unknown>[]).map((ing: Record<string, unknown>) => ({
         meal_id: mealId,
         ingredient_id: Number(ing.ingredient_id),
         quantity: Number(ing.quantity),
       }));
 
-      console.log(`[POST] Bulk saving ${ingredients.length} ingredients:`, JSON.stringify(payload));
+      console.log(`[POST] Bulk saving ${(ingredients as Record<string, unknown>[]).length} ingredients:`, JSON.stringify(payload));
       const ingrUrl = `${baseUrl()}/items/meal_ingredients`;
       console.log(`[POST] URL: ${ingrUrl}`);
 
@@ -284,10 +287,10 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({ success: true });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("POST error:", err);
     return NextResponse.json(
-      { message: err?.message ?? "Internal server error" },
+      { message: (err as Error)?.message ?? "Internal server error" },
       { status: 500 }
     );
   }
@@ -297,7 +300,7 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const contentType = request.headers.get("content-type") || "";
-    let body: any;
+    let body: Record<string, unknown>;
     let imageFile: File | null = null;
 
     if (contentType.includes("multipart/form-data")) {
@@ -309,12 +312,12 @@ export async function PUT(request: NextRequest) {
         serving: parseInt(formData.get("serving") as string),
         cost_per_serving: parseFloat(formData.get("cost_per_serving") as string) || 0,
         category_id: formData.get("category_id") ? parseInt(formData.get("category_id") as string) : null,
-        ingredients: JSON.parse(formData.get("ingredients") as string),
+        ingredients: JSON.parse(formData.get("ingredients") as string) as Record<string, unknown>[],
       };
       const maybeImage = formData.get("image");
       imageFile = maybeImage instanceof File && maybeImage.size > 0 ? maybeImage : null;
     } else {
-      body = await request.json();
+      body = await request.json() as Record<string, unknown>;
       imageFile = null;
     }
 
@@ -341,7 +344,7 @@ export async function PUT(request: NextRequest) {
         return NextResponse.json(error, { status: uploadRes.status });
       }
 
-      const uploadData = await parseJson(uploadRes);
+      const uploadData = await parseJson(uploadRes) as Record<string, { id: string }>;
       imageUrl = `/assets/${uploadData.data.id}`;
     }
 
@@ -372,8 +375,8 @@ export async function PUT(request: NextRequest) {
       `${baseUrl()}/items/meal_ingredients?filter[meal_id][_eq]=${id}&fields=id`,
       { method: "GET", headers: authHeaders() }
     );
-    const existingData = await parseJson(existingRes);
-    const existingIds: number[] = (existingData?.data ?? []).map((r: any) => r.id);
+    const existingData = await parseJson(existingRes) as Record<string, unknown>;
+    const existingIds: number[] = ((existingData?.data as Record<string, unknown>[] | undefined) ?? []).map((r: Record<string, unknown>) => r.id as number);
 
     if (existingIds.length > 0) {
       await proxyFetch(`${baseUrl()}/items/meal_ingredients`, {
@@ -383,14 +386,14 @@ export async function PUT(request: NextRequest) {
       });
     }
 
-    if (ingredients && ingredients.length > 0) {
-      const payload = ingredients.map((ing: any) => ({
+    if (ingredients && (ingredients as Record<string, unknown>[]).length > 0) {
+      const payload = (ingredients as Record<string, unknown>[]).map((ing: Record<string, unknown>) => ({
         meal_id: id,
         ingredient_id: Number(ing.ingredient_id),
         quantity: Number(ing.quantity),
       }));
 
-      console.log(`[PUT] Bulk saving ${ingredients.length} ingredients:`, JSON.stringify(payload));
+      console.log(`[PUT] Bulk saving ${(ingredients as Record<string, unknown>[]).length} ingredients:`, JSON.stringify(payload));
 
       const res = await proxyFetch(`${baseUrl()}/items/meal_ingredients`, {
         method: "POST",
@@ -407,10 +410,10 @@ export async function PUT(request: NextRequest) {
     }
 
     return NextResponse.json({ success: true });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("PUT error:", err);
     return NextResponse.json(
-      { message: err?.message ?? "Internal server error" },
+      { message: (err as Error)?.message ?? "Internal server error" },
       { status: 500 }
     );
   }
@@ -435,10 +438,10 @@ export async function DELETE(request: NextRequest) {
     }
 
     return NextResponse.json({ success: true });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("DELETE error:", err);
     return NextResponse.json(
-      { message: err?.message ?? "Internal server error" },
+      { message: (err as Error)?.message ?? "Internal server error" },
       { status: 500 }
     );
   }

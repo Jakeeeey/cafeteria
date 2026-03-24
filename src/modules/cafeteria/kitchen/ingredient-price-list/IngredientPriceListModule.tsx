@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState, useEffect, useMemo } from "react"
-import { Search, RefreshCwIcon } from "lucide-react"
+import { Search, RefreshCwIcon, PrinterIcon } from "lucide-react"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
@@ -23,7 +23,8 @@ import {
 
 import IngredientPriceListTable from "./components/IngredientPriceListTable"
 import { fetchActiveIngredients, fetchFilterOptions } from "./providers/fetchProvider"
-import type { Ingredient, FilterOptions } from "./types"
+import type { Ingredient } from "./types"
+import { printIngredientPriceList } from "./utils/printIngredientPriceList"
 
 export default function IngredientPriceListModule() {
     const [ingredients, setIngredients] = useState<Ingredient[]>([])
@@ -48,9 +49,10 @@ export default function IngredientPriceListModule() {
             setSupplierOptions(options.suppliers || [])
             setCategoryOptions(options.categories || [])
             setBrandOptions(options.brands || [])
-        } catch (error: any) {
-            console.error("Failed to load list data:", error)
-            toast.error(error?.message ?? "Failed to load ingredients data.")
+        } catch (error: unknown) {
+            const err = error as Error
+            console.error("Failed to load list data:", err)
+            toast.error(err?.message ?? "Failed to load ingredients data.")
         } finally {
             setIsLoading(false)
         }
@@ -66,12 +68,7 @@ export default function IngredientPriceListModule() {
 
         return ingredients.filter((i) => {
             if (q) {
-                const matchesSearch =
-                    i.name.toLowerCase().includes(q) ||
-                    (i.description ?? "").toLowerCase().includes(q) ||
-                    (i.brand_name ?? "").toLowerCase().includes(q) ||
-                    (i.category_name ?? "").toLowerCase().includes(q) ||
-                    (i.supplier_name ?? "").toLowerCase().includes(q)
+                const matchesSearch = i.name.toLowerCase().includes(q)
                 if (!matchesSearch) return false
             }
             if (supplierFilter !== "all" && i.supplier_name !== supplierFilter) return false
@@ -97,7 +94,7 @@ export default function IngredientPriceListModule() {
                             <div className="relative w-full sm:w-52">
                                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                                 <Input
-                                    placeholder="Search ingredients..."
+                                    placeholder="Search by name..."
                                     className="pl-8"
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
@@ -149,9 +146,30 @@ export default function IngredientPriceListModule() {
                             <Button
                                 variant="outline"
                                 size="icon"
+                                title="Print list"
+                                disabled={isLoading || filteredIngredients.length === 0}
+                                onClick={() => {
+                                    printIngredientPriceList(filteredIngredients)
+                                    toast.success("Generating printable report...")
+                                }}
+                                className="w-full sm:w-10 sm:h-10 shrink-0 border-primary/20 hover:bg-primary/5 hover:text-primary"
+                            >
+                                <PrinterIcon className="size-4" />
+                                <span className="sr-only">Print</span>
+                            </Button>
+
+                            <Button
+                                variant="outline"
+                                size="icon"
                                 title="Refresh list"
                                 disabled={isLoading}
-                                onClick={loadData}
+                                onClick={() => {
+                                    setSearchQuery("")
+                                    setSupplierFilter("all")
+                                    setCategoryFilter("all")
+                                    setBrandFilter("all")
+                                    loadData()
+                                }}
                                 className="w-full sm:w-10 sm:h-10 shrink-0"
                             >
                                 <RefreshCwIcon className={`size-4 ${isLoading ? "animate-spin" : ""}`} />

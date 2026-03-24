@@ -16,7 +16,6 @@ import {
   fetchIngredients,
   createMeal,
   updateMeal,
-  deleteMeal,
 } from "./providers/fetchProvider";
 import type {
   MealWithIngredients,
@@ -57,8 +56,8 @@ export default function ProductMealRegistrationModule() {
     try {
       const data = await fetchMeals();
       setMeals(data);
-    } catch (err: any) {
-      toast.error(err?.message ?? "Failed to load meals.");
+    } catch (err: unknown) {
+      toast.error((err as Error)?.message ?? "Failed to load meals.");
     } finally {
       setListLoading(false);
     }
@@ -74,8 +73,8 @@ export default function ProductMealRegistrationModule() {
       ]);
       setCategories(cats);
       setIngredients(ings);
-    } catch (err: any) {
-      toast.error(err?.message ?? "Failed to load options.");
+    } catch (err: unknown) {
+      toast.error((err as Error)?.message ?? "Failed to load options.");
     } finally {
       setOptionsLoading(false);
     }
@@ -120,8 +119,8 @@ export default function ProductMealRegistrationModule() {
       toast.success("Meal created successfully.");
       setDialogOpen(false);
       loadMeals();
-    } catch (err: any) {
-      toast.error(err?.message ?? "Failed to create meal.");
+    } catch (err: unknown) {
+      toast.error((err as Error)?.message ?? "Failed to create meal.");
     }
   }
 
@@ -142,19 +141,8 @@ export default function ProductMealRegistrationModule() {
       toast.success("Meal updated successfully.");
       setDialogOpen(false);
       loadMeals();
-    } catch (err: any) {
-      toast.error(err?.message ?? "Failed to update meal.");
-    }
-  }
-
-  // ─── Handle delete ───────────────────────────────────────────────────────
-  async function handleDelete(id: number) {
-    try {
-      await deleteMeal(id);
-      toast.success("Meal deleted successfully.");
-      loadMeals();
-    } catch (err: any) {
-      toast.error(err?.message ?? "Failed to delete meal.");
+    } catch (err: unknown) {
+      toast.error((err as Error)?.message ?? "Failed to update meal.");
     }
   }
 
@@ -231,7 +219,6 @@ export default function ProductMealRegistrationModule() {
         loading={listLoading}
         onEdit={openEditDialog}
         onView={openViewDialog}
-        onDelete={handleDelete}
         allIngredients={ingredients}
       />
 
