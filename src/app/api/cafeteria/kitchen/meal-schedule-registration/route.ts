@@ -38,7 +38,7 @@ async function proxyFetch(url: string, init: RequestInit): Promise<Response> {
   }
 }
 
-async function parseJson(res: Response): Promise<any> {
+async function parseJson(res: Response): Promise<unknown> {
   const text = await res.text();
   try {
     return text ? JSON.parse(text) : null;
@@ -47,25 +47,69 @@ async function parseJson(res: Response): Promise<any> {
   }
 }
 
-function toList(raw: any): any[] {
-  return Array.isArray(raw) ? raw : (raw?.data ?? raw?.content ?? []);
+function toList(raw: unknown): unknown[] {
+  if (Array.isArray(raw)) return raw;
+  const record = raw as Record<string, unknown>;
+  if (Array.isArray(record?.data)) return record.data;
+  if (Array.isArray(record?.content)) return record.content;
+  return [];
 }
 
-// ─── Normalize a raw meal row from Directus into a clean frontend shape ───────
-function normalizeMeal(raw: any): any {
-  const category =
-    typeof raw.category_id === "object" ? raw.category_id : null;
+type DirectusMealCategory = {
+  id?: number;
+  name?: string | null;
+  unit_of_measurement?: { unit_name?: string | null } | null;
+  unit_name?: string | null;
+  cost_per_unit?: number | string | null;
+  [key: string]: unknown;
+};
 
-  const ingredients = toList(raw.meal_ingredients ?? []).map((mi: any) => {
+type DirectusMealRaw = {
+  id?: number;
+  name?: string;
+  description?: string | null;
+  category_id?: number | DirectusMealCategory | null;
+  meal_type?: string | null;
+  serving_size?: number | string | null;
+  serving?: number | string | null;
+  meal_ingredients?: unknown[];
+  [key: string]: unknown;
+};
+
+type DirectusUserRecord = {
+  user_id?: number | string | null;
+  [key: string]: unknown;
+};
+
+type DirectusItemMaybeResponse<T> = { data?: T } | T;
+
+function unwrapDirectus<T>(raw: unknown): T {
+  const record = raw as DirectusItemMaybeResponse<T> | null | undefined;
+  if (record && typeof record === "object" && (record as { data?: T }).data !== undefined) {
+    return (record as { data: T }).data;
+  }
+  return raw as T;
+}
+
+type MealScheduleRecord = { id?: number } & Record<string, unknown>;
+type MealPurchaseOrderRecord = { id?: number } & Record<string, unknown>;
+
+// ─── Normalize a raw meal row from Directus into a clean frontend shape ───────
+function normalizeMeal(raw: DirectusMealRaw): Record<string, unknown> {
+  const category =
+    typeof raw.category_id === "object" && raw.category_id !== null ? raw.category_id as Record<string, unknown> : null;
+
+  const ingredients = toList(raw.meal_ingredients ?? []).map((mi: unknown) => {
+    const miRecord = mi as Record<string, unknown>;
     const ing =
-      typeof mi.ingredient_id === "object" ? mi.ingredient_id : null;
+      typeof miRecord.ingredient_id === "object" && miRecord.ingredient_id !== null ? miRecord.ingredient_id as Record<string, unknown> : null;
     return {
       ingredient_id:
-        ing?.id ?? (typeof mi.ingredient_id === "number" ? mi.ingredient_id : null),
-      ingredient_name: ing?.name ?? mi.ingredient_name ?? null,
-      quantity_per_serving: Number(mi.quantity ?? mi.quantity_per_serving ?? 0),
+        ing?.id ?? (typeof miRecord.ingredient_id === "number" ? miRecord.ingredient_id : null),
+      ingredient_name: ing?.name ?? miRecord.ingredient_name ?? null,
+      quantity_per_serving: Number(miRecord.quantity ?? miRecord.quantity_per_serving ?? 0),
       cost_per_unit: Number(ing?.cost_per_unit ?? 0),
-      unit_name: ing?.unit_of_measurement?.unit_name ?? ing?.unit_name ?? mi.unit_name ?? null,
+      unit_name: (typeof ing?.unit_of_measurement === "object" && ing.unit_of_measurement !== null ? ing.unit_of_measurement as Record<string, unknown> : null)?.unit_name ?? ing?.unit_name ?? miRecord.unit_name ?? null,
     };
   });
 
@@ -103,7 +147,7 @@ export async function GET(req: NextRequest) {
       }
 
       // Decode JWT payload (no verification needed — we just need the claims)
-      let decoded: any = null;
+      let decoded: Record<string, unknown> | null = null;
       try {
         const parts = token.split(".");
         const b64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
@@ -132,11 +176,10 @@ export async function GET(req: NextRequest) {
           }
           const userRes = await proxyFetch(userQuery, { method: "GET", headers });
           const userData = await parseJson(userRes);
-          const users = Array.isArray(userData)
-            ? userData
-            : (userData?.data ?? userData?.content ?? []);
-          if (users.length > 0 && users[0].user_id) {
-            userId = Number(users[0].user_id);
+          const users = toList(userData) as DirectusUserRecord[];
+          const firstUser = users[0];
+          if (firstUser && firstUser.user_id != null) {
+            userId = Number(firstUser.user_id);
           }
         } catch {
           // ignore — we'll return null below
@@ -168,26 +211,29 @@ export async function GET(req: NextRequest) {
 
       if (!mealsRes.ok) {
         console.error("[meal-schedule-registration GET meals]", mealsRes.status, mealsData);
+        const errorData = mealsData as { message?: string; errors?: Array<{ message?: string }> };
         return NextResponse.json(
-          { message: mealsData?.errors?.[0]?.message ?? mealsData?.message ?? "Failed to fetch meals." },
+          { message: errorData?.errors?.[0]?.message ?? errorData?.message ?? "Failed to fetch meals." },
           { status: mealsRes.status }
         );
       }
 
       // Build a map: meal_id → ingredient rows
       const miList = toList(miData);
-      const miByMealId = new Map<number, any[]>();
+      const miByMealId = new Map<number, Record<string, unknown>[]>();
       for (const mi of miList) {
-        const mealId = typeof mi.meal_id === "object" ? mi.meal_id?.id : Number(mi.meal_id);
+        const miRecord = mi as Record<string, unknown>;
+        const mealId = typeof miRecord.meal_id === "object" ? (miRecord.meal_id as Record<string, unknown> | null)?.id as number : Number(miRecord.meal_id);
         if (!mealId) continue;
         if (!miByMealId.has(mealId)) miByMealId.set(mealId, []);
-        miByMealId.get(mealId)!.push(mi);
+        miByMealId.get(mealId)!.push(miRecord);
       }
 
       // Inject the ingredients into each meal before normalizing
-      const list = toList(mealsData).map((raw: any) => {
-        raw.meal_ingredients = miByMealId.get(raw.id) ?? [];
-        return normalizeMeal(raw);
+      const list = toList(mealsData).map((raw: unknown) => {
+        const rawRecord = raw as Record<string, unknown>;
+        rawRecord.meal_ingredients = miByMealId.get(rawRecord.id as number) ?? [];
+        return normalizeMeal(rawRecord);
       });
 
       return NextResponse.json(list, { headers: { "Cache-Control": "no-store" } });
@@ -220,8 +266,9 @@ export async function GET(req: NextRequest) {
 
       if (!upstream.ok) {
         console.error("[meal-schedule-registration GET week]", upstream.status, data);
+        const errorData = data as { message?: string; errors?: Array<{ message?: string }> };
         return NextResponse.json(
-          { message: data?.errors?.[0]?.message ?? data?.message ?? "Failed to fetch schedules." },
+          { message: errorData?.errors?.[0]?.message ?? errorData?.message ?? "Failed to fetch schedules." },
           { status: upstream.status }
         );
       }
@@ -238,15 +285,16 @@ export async function GET(req: NextRequest) {
 
     if (!upstream.ok) {
       console.error("[meal-schedule-registration GET]", upstream.status, data);
+      const errorData = data as { message?: string; errors?: Array<{ message?: string }> };
       return NextResponse.json(
-        { message: data?.errors?.[0]?.message ?? data?.message ?? "Failed to fetch schedules." },
+        { message: errorData?.errors?.[0]?.message ?? errorData?.message ?? "Failed to fetch schedules." },
         { status: upstream.status }
       );
     }
 
     return NextResponse.json(toList(data), { headers: { "Cache-Control": "no-store" } });
-  } catch (err: any) {
-    console.error("[meal-schedule-registration GET]", err?.message);
+  } catch (err: unknown) {
+    console.error("[meal-schedule-registration GET]", err instanceof Error ? err.message : err);
     return NextResponse.json(
       { message: "Server error. Please contact Administrator." },
       { status: 500 }
@@ -292,7 +340,7 @@ export async function POST(req: NextRequest) {
     const { week_start, schedules, po_items = [], total_estimated_cost = 0, created_by = null } = body;
 
     // ── 1. Create all meal_schedules entries ──────────────────────────────────
-    const scheduleResults: any[] = [];
+    const scheduleResults: Record<string, unknown>[] = [];
     for (const s of schedules) {
       const payload = {
         user_id: s.user_id ?? created_by,
@@ -311,12 +359,14 @@ export async function POST(req: NextRequest) {
       const data = await parseJson(res);
       if (!res.ok) {
         console.error("[meal-schedule-registration POST schedule]", res.status, data);
+        const errorData = data as { message?: string; errors?: Array<{ message?: string }> };
         return NextResponse.json(
-          { message: data?.errors?.[0]?.message ?? data?.message ?? "Failed to create meal schedule." },
+          { message: errorData?.errors?.[0]?.message ?? errorData?.message ?? "Failed to create meal schedule." },
           { status: res.status }
         );
       }
-      scheduleResults.push(data?.data ?? data);
+      const createdSchedule = unwrapDirectus<MealScheduleRecord>(data);
+      scheduleResults.push(createdSchedule);
     }
 
     // ── 2. Create the Purchase Order header ───────────────────────────────────
@@ -328,7 +378,7 @@ export async function POST(req: NextRequest) {
     const poPayload = {
       date_from: toISO(monDate),
       date_to: toISO(satDate),
-      total_estimated_cost: Number(total_estimated_cost).toFixed(4),
+      total_estimated_cost: parseFloat(Number(total_estimated_cost).toFixed(4)),
       status: "Pending",
       created_by,
     };
@@ -340,12 +390,14 @@ export async function POST(req: NextRequest) {
     const poData = await parseJson(poRes);
     if (!poRes.ok) {
       console.error("[meal-schedule-registration POST PO]", poRes.status, poData);
+      const errorData = poData as { message?: string; errors?: Array<{ message?: string }> };
       return NextResponse.json(
-        { message: poData?.errors?.[0]?.message ?? poData?.message ?? "Failed to create purchase order." },
+        { message: errorData?.errors?.[0]?.message ?? errorData?.message ?? "Failed to create purchase order." },
         { status: poRes.status }
       );
     }
-    const purchaseOrderId = (poData?.data ?? poData)?.id;
+    const poRecord = unwrapDirectus<MealPurchaseOrderRecord>(poData);
+    const purchaseOrderId: number | null = (poRecord.id as number | undefined) ?? null;
 
     // ── 3. Create PO items (ingredients) ─────────────────────────────────────
     if (purchaseOrderId && po_items.length > 0) {
@@ -353,8 +405,8 @@ export async function POST(req: NextRequest) {
         const itemPayload = {
           purchase_order_id: purchaseOrderId,
           ingredient_id: item.ingredient_id,
-          required_quantity: Number(item.required_quantity).toFixed(4),
-          estimated_cost: Number(item.estimated_cost).toFixed(4),
+          required_quantity: parseFloat(Number(item.required_quantity).toFixed(4)),
+          estimated_cost: parseFloat(Number(item.estimated_cost).toFixed(4)),
           created_by,
         };
         const itemRes = await proxyFetch(`${base}/items/meal_purchase_order_items`, {
@@ -394,8 +446,8 @@ export async function POST(req: NextRequest) {
       { ok: true, purchase_order_id: purchaseOrderId, schedules_created: scheduleResults.length },
       { status: 201 }
     );
-  } catch (err: any) {
-    console.error("[meal-schedule-registration POST]", err?.message);
+  } catch (err: unknown) {
+    console.error("[meal-schedule-registration POST]", err instanceof Error ? err.message : err);
     return NextResponse.json(
       { message: "Server error. Please contact Administrator." },
       { status: 500 }

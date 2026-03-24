@@ -7,13 +7,6 @@ import Image from "next/image";
 import {
     LayoutDashboard,
     Landmark,
-    PiggyBank as BudgetingIcon,
-    HandCoins as DisbursementIcon,
-    ArrowLeftRight,
-    LayoutDashboard as SubDashboardIcon,
-    BadgeCheck,
-    FolderKanban,
-    BarChart3,
 } from "lucide-react";
 
 import { NavMain } from "./nav-main";
@@ -39,6 +32,10 @@ const data = {
             icon: Landmark,
             items: 
             [
+                { 
+                    title: "Supplier Registration", 
+                    url: "/cafeteria/file-management/supplier-registration", 
+                },
                 { 
                     title: "Brand Registration", 
                     url: "/cafeteria/file-management/brand-registration", 

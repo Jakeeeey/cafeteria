@@ -286,7 +286,6 @@ export default function MealScheduleRegistrationModule() {
       const { scheduleItems, poItems, totalEstimatedCost } = buildSubmitPayload(
         schedule,
         weekDates,
-        currentUserId,
         currentUserId
       );
 

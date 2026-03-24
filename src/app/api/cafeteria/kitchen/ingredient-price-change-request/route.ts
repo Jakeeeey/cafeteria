@@ -41,7 +41,7 @@ async function proxyFetch(
     }
 }
 
-async function parseJson(res: Response): Promise<any> {
+async function parseJson(res: Response): Promise<unknown> {
     const text = await res.text();
     try {
         return text ? JSON.parse(text) : null;
@@ -50,7 +50,7 @@ async function parseJson(res: Response): Promise<any> {
     }
 }
 
-function decodeJwtPayload(token: string): any | null {
+function decodeJwtPayload(token: string): Record<string, unknown> | null {
     try {
         const parts = token.split(".");
         if (parts.length < 2) return null;
@@ -60,7 +60,7 @@ function decodeJwtPayload(token: string): any | null {
         const padded = b64 + "=".repeat((4 - (b64.length % 4)) % 4);
 
         const json = Buffer.from(padded, "base64").toString("utf8");
-        return JSON.parse(json);
+        return JSON.parse(json) as Record<string, unknown>;
     } catch {
         return null;
     }
@@ -78,16 +78,18 @@ export async function GET() {
         const data = await parseJson(res);
 
         if (!res.ok) {
+            const errorData = data as Record<string, unknown>;
+            const errors = errorData?.errors as { message: string }[] | undefined;
             return NextResponse.json(
-                { message: data?.errors?.[0]?.message ?? data?.message ?? "Failed to fetch requests" },
+                { message: errors?.[0]?.message ?? errorData?.message ?? "Failed to fetch requests" },
                 { status: res.status }
             );
         }
 
-        const raw = Array.isArray(data) ? data : (data?.data ?? data?.content ?? []);
+        const raw = Array.isArray(data) ? data : ((data as Record<string, unknown>)?.data ?? (data as Record<string, unknown>)?.content ?? []);
         return NextResponse.json(raw, { status: 200 });
-    } catch (err: any) {
-        return NextResponse.json({ message: err.message }, { status: 500 });
+    } catch (err: unknown) {
+        return NextResponse.json({ message: (err as Error).message }, { status: 500 });
     }
 }
 
@@ -102,7 +104,7 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ message: "Invalid request body." }, { status: 400 });
         }
 
-        function pickString(obj: any, keys: string[]): string {
+        function pickString(obj: Record<string, unknown> | null | undefined, keys: string[]): string {
             if (!obj) return "";
             for (const k of keys) {
                 const v = obj[k];
@@ -128,7 +130,7 @@ export async function POST(req: NextRequest) {
 
                 const userRes = await proxyFetch(userQuery, { method: "GET", headers });
                 const userData = await parseJson(userRes);
-                const actualUsers = Array.isArray(userData) ? userData : (userData?.data || userData?.content || []);
+                const actualUsers = (Array.isArray(userData) ? userData : ((userData as Record<string, unknown>)?.data || (userData as Record<string, unknown>)?.content || [])) as Record<string, unknown>[];
 
                 if (actualUsers.length > 0 && actualUsers[0].user_id) {
                     requested_by = Number(actualUsers[0].user_id);
@@ -136,12 +138,12 @@ export async function POST(req: NextRequest) {
                     // One last attempt without the email filter just to get ANY valid user so we don't break FK
                     const fbRes = await proxyFetch(`${base}/items/user?fields=user_id&limit=1`, { method: "GET", headers });
                     const fbData = await parseJson(fbRes);
-                    const fbUsers = Array.isArray(fbData) ? fbData : (fbData?.data || fbData?.content || []);
+                    const fbUsers = (Array.isArray(fbData) ? fbData : ((fbData as Record<string, unknown>)?.data || (fbData as Record<string, unknown>)?.content || [])) as Record<string, unknown>[];
                     if (fbUsers.length > 0 && fbUsers[0].user_id) {
                         requested_by = Number(fbUsers[0].user_id);
                     }
                 }
-            } catch (e) {
+            } catch {
                 // Ignore errors
             }
         }
@@ -178,16 +180,18 @@ export async function POST(req: NextRequest) {
         const data = await parseJson(upstream);
 
         if (!upstream.ok) {
-            console.error("[ingredient-price-change-request POST] Upstream error", upstream.status, data);
+            const errorData = data as Record<string, unknown>;
+            const errors = errorData?.errors as { message: string }[] | undefined;
+            console.error("[ingredient-price-change-request POST] Upstream error", upstream.status, errorData);
             return NextResponse.json(
-                { message: data?.errors?.[0]?.message ?? data?.message ?? "Failed to submit price change request." },
+                { message: errors?.[0]?.message ?? errorData?.message ?? "Failed to submit price change request." },
                 { status: upstream.status }
             );
         }
 
         return NextResponse.json(data ?? { ok: true }, { status: upstream.status });
-    } catch (err: any) {
-        console.error("[ingredient-price-change-request POST]", err?.message);
+    } catch (err: unknown) {
+        console.error("[ingredient-price-change-request POST]", (err as Error)?.message);
         return NextResponse.json(
             { message: "Server error. Please contact Administrator." },
             { status: 500 }
@@ -219,14 +223,16 @@ export async function PUT(req: NextRequest) {
         const data = await parseJson(upstream);
 
         if (!upstream.ok) {
+            const errorData = data as Record<string, unknown>;
+            const errors = errorData?.errors as { message: string }[] | undefined;
             return NextResponse.json(
-                { message: data?.errors?.[0]?.message ?? data?.message ?? "Failed to update price change request." },
+                { message: errors?.[0]?.message ?? errorData?.message ?? "Failed to update price change request." },
                 { status: upstream.status }
             );
         }
 
         return NextResponse.json(data ?? { ok: true }, { status: upstream.status });
-    } catch (err: any) {
-        return NextResponse.json({ message: err.message }, { status: 500 });
+    } catch (err: unknown) {
+        return NextResponse.json({ message: (err as Error).message }, { status: 500 });
     }
 }

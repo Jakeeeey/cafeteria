@@ -84,14 +84,14 @@ export async function GET() {
     const base = baseUrl();
 
     const upstream = await proxyFetch(
-      `${base}/items/categories?fields=category_id,category_name,sku_code,is_cafeteria,created_by,created_at,updated_by,updated_at&sort=-created_at&limit=-1`,
+      `${base}/items/categories?fields=category_id,category_name,sku_code,is_cafeteria,created_by,created_at,updated_by,updated_at&filter[is_cafeteria][_eq]=1&sort=-created_at&limit=-1`,
       { method: "GET", headers }
     );
     const data = await parseJson(upstream);
 
     if (!upstream.ok) {
       console.error("[category-registration GET] Upstream error", upstream.status, data);
-      const errorData = data as any;
+      const errorData = data as { errors?: Array<{ message?: string }>; message?: string };
       return NextResponse.json(
         { message: errorData?.errors?.[0]?.message ?? errorData?.message ?? "Failed to fetch categories." },
         { status: upstream.status }
@@ -138,7 +138,7 @@ export async function POST(req: NextRequest) {
 
     if (!upstream.ok) {
       console.error("[category-registration POST] Upstream error", upstream.status, data);
-      const errorData = data as any;
+      const errorData = data as { errors?: Array<{ message?: string }>; message?: string };
       return NextResponse.json(
         { message: errorData?.errors?.[0]?.message ?? errorData?.message ?? "Failed to create category." },
         { status: upstream.status }
@@ -146,8 +146,8 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json(data ?? { ok: true }, { status: upstream.status });
-  } catch (err: any) {
-    console.error("[category-registration POST]", err?.message);
+  } catch (err: unknown) {
+    console.error("[category-registration POST]", err instanceof Error ? err.message : err);
     return NextResponse.json(
       { message: "Server error. Please contact Administrator." },
       { status: 500 }
@@ -185,7 +185,7 @@ export async function PUT(req: NextRequest) {
 
     if (!upstream.ok) {
       console.error("[category-registration PUT] Upstream error", upstream.status, data);
-      const errorData = data as any;
+      const errorData = data as { errors?: Array<{ message?: string }>; message?: string };
       return NextResponse.json(
         { message: errorData?.errors?.[0]?.message ?? errorData?.message ?? "Failed to update category." },
         { status: upstream.status }
@@ -193,8 +193,8 @@ export async function PUT(req: NextRequest) {
     }
 
     return NextResponse.json(data ?? { ok: true }, { status: upstream.status });
-  } catch (err: any) {
-    console.error("[category-registration PUT]", err?.message);
+  } catch (err: unknown) {
+    console.error("[category-registration PUT]", err instanceof Error ? err.message : err);
     return NextResponse.json(
       { message: "Server error. Please contact Administrator." },
       { status: 500 }

@@ -22,7 +22,6 @@ interface MealTableProps {
   loading: boolean;
   onEdit: (meal: MealWithIngredients) => void;
   onView: (meal: MealWithIngredients) => void;
-  onDelete: (id: number) => void;
   allIngredients?: Ingredient[]; // used as lookup fallback
   itemsPerPage?: number;
 }
@@ -32,7 +31,6 @@ export default function MealTable({
   loading,
   onEdit,
   onView,
-  onDelete,
   allIngredients,
   itemsPerPage = 10,
 }: MealTableProps) {
@@ -97,6 +95,7 @@ export default function MealTable({
                   <div className="flex items-center gap-3">
                     {row.image && (
                       <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-md border bg-muted">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                           src={row.image.startsWith('/assets/')
                             ? `${process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, '')}${row.image}`
@@ -118,12 +117,10 @@ export default function MealTable({
                     ? row.ingredients
                       .map((ing) => {
                         let name = "";
-                        let unit = "";
                         const quantity = Number(ing.quantity) || 0;
                         const relIngredient = ing.ingredient;
                         if (relIngredient) {
                           name = relIngredient.name || "";
-                          unit = relIngredient.unit || "";
                         } else {
                           // fallback to global list
                           const fallback = allIngredients?.find(
@@ -131,7 +128,6 @@ export default function MealTable({
                           );
                           if (fallback) {
                             name = fallback.name || "";
-                            unit = fallback.unit || "";
                           }
                         }
                         return name ? `${name} x${quantity}` : "";

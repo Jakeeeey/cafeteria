@@ -13,14 +13,14 @@ import { NavUser } from "../../_components/nav-user";
 import { cookies } from "next/headers";
 
 // ✅ Wire the module you asked for
-import IngredientRegistrationModule from "@/modules/cafeteria/kitchen/ingredient-registration/IngredientRegistrationModule";
+import ComingSoon from "../../_components/ComingSoon";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const COOKIE_NAME = "vos_access_token";
 
-function decodeJwtPayload(token: string): Record<string, unknown> | null {
+function decodeJwtPayload(token: string): any | null {
     try {
         const parts = token.split(".");
         if (parts.length < 2) return null;
@@ -36,7 +36,7 @@ function decodeJwtPayload(token: string): Record<string, unknown> | null {
     }
 }
 
-function pickString(obj: Record<string, unknown> | null | undefined, keys: string[]): string {
+function pickString(obj: any, keys: string[]): string {
     for (const k of keys) {
         const v = obj?.[k];
         if (typeof v === "string" && v.trim()) return v.trim();
@@ -96,12 +96,12 @@ export default async function Page() {
                         <Breadcrumb>
                             <BreadcrumbList className="min-w-0 overflow-hidden">
                                 <BreadcrumbItem className="hidden md:block shrink-0">
-                                    <BreadcrumbLink href="#">Kitchen</BreadcrumbLink>
+                                    <BreadcrumbLink href="#">File Management</BreadcrumbLink>
                                 </BreadcrumbItem>
                                 <BreadcrumbSeparator className="hidden md:block shrink-0" />
                                 <BreadcrumbItem className="min-w-0 overflow-hidden">
                                     <BreadcrumbPage className="truncate max-w-[56vw] sm:max-w-[60vw] md:max-w-none">
-                                        Ingredient Registration
+                                        Supplier Registration
                                     </BreadcrumbPage>
                                 </BreadcrumbItem>
                             </BreadcrumbList>
@@ -116,7 +116,7 @@ export default async function Page() {
 
             {/* ✅ Only content scrolls inside RIGHT column */}
             <main className="min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden p-2 sm:p-4">
-                <IngredientRegistrationModule />
+                <ComingSoon />
             </main>
         </div>
     );

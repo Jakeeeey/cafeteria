@@ -41,7 +41,7 @@ async function proxyFetch(
   }
 }
 
-async function parseJson(res: Response): Promise<any> {
+async function parseJson(res: Response): Promise<unknown> {
   const text = await res.text();
   try {
     return text ? JSON.parse(text) : null;
@@ -52,8 +52,9 @@ async function parseJson(res: Response): Promise<any> {
 
 // ─── Normalize Directus errors into user-friendly messages ───────────────────
 
-function friendlyError(data: any, fallback: string, name?: string): string {
-  const raw: string = data?.errors?.[0]?.message ?? data?.message ?? "";
+function friendlyError(data: unknown, fallback: string, name?: string): string {
+  const errorData = data as { errors?: Array<{ message?: string }>; message?: string };
+  const raw: string = errorData?.errors?.[0]?.message ?? errorData?.message ?? "";
   if (/unique/i.test(raw)) {
     return name
       ? `name "${name}" is already in the Ingredient Registration.`
@@ -65,11 +66,11 @@ function friendlyError(data: any, fallback: string, name?: string): string {
 // ─── Flatten Directus nested relations into the flat Ingredient shape ─────────
 // Directus returns FK relations as nested objects when you request ?fields=*,rel.*
 // e.g. brand_id: { brand_id: 1, brand_name: "Nestle" }
-function normalizeIngredient(raw: any): any {
-  const brand      = typeof raw.brand_id         === "object" ? raw.brand_id         : null;
-  const category   = typeof raw.category_id      === "object" ? raw.category_id      : null;
-  const unit       = typeof raw.unit_of_measurement === "object" ? raw.unit_of_measurement : null;
-  const supplier   = typeof raw.supplier         === "object" ? raw.supplier         : null;
+function normalizeIngredient(raw: Record<string, unknown>): Record<string, unknown> {
+  const brand      = typeof raw.brand_id         === "object" ? raw.brand_id as Record<string, unknown>        : null;
+  const category   = typeof raw.category_id      === "object" ? raw.category_id as Record<string, unknown>     : null;
+  const unit       = typeof raw.unit_of_measurement === "object" ? raw.unit_of_measurement as Record<string, unknown> : null;
+  const supplier   = typeof raw.supplier         === "object" ? raw.supplier as Record<string, unknown>        : null;
 
   return {
     id:                  raw.id,
@@ -112,8 +113,8 @@ export async function GET(req: NextRequest) {
       // Fetch all FK lookup tables in parallel from Directus
       const [brandsRes, categoriesRes, unitsRes, suppliersRes] =
         await Promise.all([
-          proxyFetch(`${base}/items/brand`, { method: "GET", headers }),
-          proxyFetch(`${base}/items/categories`, { method: "GET", headers }),
+          proxyFetch(`${base}/items/brand?filter[is_cafeteria][_eq]=1`, { method: "GET", headers }),
+          proxyFetch(`${base}/items/categories?filter[is_cafeteria][_eq]=1`, { method: "GET", headers }),
           proxyFetch(`${base}/items/units`, { method: "GET", headers }),
           proxyFetch(`${base}/items/suppliers`, { method: "GET", headers }),
         ]);
@@ -135,25 +136,42 @@ export async function GET(req: NextRequest) {
       console.log("[options] suppliersRaw:", JSON.stringify(suppliersRaw)?.slice(0, 300));
 
       // Directus wraps results in { data: [] }
-      const toList = (raw: any): any[] =>
-        Array.isArray(raw) ? raw : (raw?.data ?? raw?.content ?? []);
+      const toList = (raw: unknown): unknown[] => {
+        if (Array.isArray(raw)) return raw;
+        const obj = raw as Record<string, unknown>;
+        if (Array.isArray(obj?.data)) return obj.data;
+        if (Array.isArray(obj?.content)) return obj.content;
+        return [];
+      };
 
-      const brands = toList(brandsRaw).map((b: any) => ({
-        value: b.brand_id ?? b.id,
-        label: b.brand_name ?? b.name,
-      }));
-      const categories = toList(categoriesRaw).map((c: any) => ({
-        value: c.category_id ?? c.id,
-        label: c.category_name ?? c.name,
-      }));
-      const units = toList(unitsRaw).map((u: any) => ({
-        value: u.unit_id ?? u.id,
-        label: u.abbreviation ? `${u.unit_name ?? u.name} (${u.abbreviation})` : (u.unit_name ?? u.name),
-      }));
-      const suppliers = toList(suppliersRaw).map((s: any) => ({
-        value: s.id,
-        label: s.supplier_name ?? s.name,
-      }));
+      const brands = toList(brandsRaw).map((b: unknown) => {
+        const brand = b as Record<string, unknown>;
+        return {
+          value: brand.brand_id ?? brand.id,
+          label: brand.brand_name ?? brand.name,
+        };
+      });
+      const categories = toList(categoriesRaw).map((c: unknown) => {
+        const category = c as Record<string, unknown>;
+        return {
+          value: category.category_id ?? category.id,
+          label: category.category_name ?? category.name,
+        };
+      });
+      const units = toList(unitsRaw).map((u: unknown) => {
+        const unit = u as Record<string, unknown>;
+        return {
+          value: unit.unit_id ?? unit.id,
+          label: unit.abbreviation ? `${unit.unit_name ?? unit.name} (${unit.abbreviation})` : (unit.unit_name ?? unit.name),
+        };
+      });
+      const suppliers = toList(suppliersRaw).map((s: unknown) => {
+        const supplier = s as Record<string, unknown>;
+        return {
+          value: supplier.id,
+          label: supplier.supplier_name ?? supplier.name,
+        };
+      });
 
       console.log("[options] counts → brands:", brands.length, "categories:", categories.length, "units:", units.length, "suppliers:", suppliers.length);
 
@@ -172,22 +190,24 @@ export async function GET(req: NextRequest) {
 
     if (!upstream.ok) {
       console.error("[ingredient-registration GET] Upstream error", upstream.status, data);
+      const errorData = data as { errors?: Array<{ message?: string }>; message?: string };
       return NextResponse.json(
-        { message: data?.errors?.[0]?.message ?? data?.message ?? "Failed to fetch ingredients" },
+        { message: errorData?.errors?.[0]?.message ?? errorData?.message ?? "Failed to fetch ingredients" },
         { status: upstream.status }
       );
     }
 
     // Directus wraps the list in { data: [] } — unwrap and normalize each row
-    const raw = Array.isArray(data) ? data : (data?.data ?? data?.content ?? []);
-    const list = raw.map(normalizeIngredient);
+    const dataObj = data as { data?: unknown[]; content?: unknown[] };
+    const raw = Array.isArray(data) ? data : (dataObj?.data ?? dataObj?.content ?? []);
+    const list = raw.map(item => normalizeIngredient(item as Record<string, unknown>));
 
     return NextResponse.json(list, {
       status: 200,
       headers: { "Cache-Control": "no-store" },
     });
-  } catch (err: any) {
-    console.error("[ingredient-registration GET]", err?.message);
+  } catch (err: unknown) {
+    console.error("[ingredient-registration GET]", err instanceof Error ? err.message : err);
     return NextResponse.json(
       { message: "Server error. Please contact Administrator." },
       { status: 500 }
@@ -221,8 +241,8 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json(data ?? { ok: true }, { status: upstream.status });
-  } catch (err: any) {
-    console.error("[ingredient-registration POST]", err?.message);
+  } catch (err: unknown) {
+    console.error("[ingredient-registration POST]", err instanceof Error ? err.message : err);
     return NextResponse.json(
       { message: "Server error. Please contact Administrator." },
       { status: 500 }
@@ -261,8 +281,8 @@ export async function PUT(req: NextRequest) {
     }
 
     return NextResponse.json(data ?? { ok: true }, { status: upstream.status });
-  } catch (err: any) {
-    console.error("[ingredient-registration PUT]", err?.message);
+  } catch (err: unknown) {
+    console.error("[ingredient-registration PUT]", err instanceof Error ? err.message : err);
     return NextResponse.json(
       { message: "Server error. Please contact Administrator." },
       { status: 500 }

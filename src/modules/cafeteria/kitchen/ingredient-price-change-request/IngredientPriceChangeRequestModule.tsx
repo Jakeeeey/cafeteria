@@ -52,9 +52,10 @@ export default function IngredientPriceChangeRequestModule() {
             setSupplierOptions(optData.suppliers)
             setCategoryOptions(optData.categories)
             setRequests(reqData)
-        } catch (error: any) {
-            console.error("Failed to fetch data:", error)
-            toast.error(error?.message ?? "Failed to load data.")
+        } catch (error: unknown) {
+            const err = error as Error
+            console.error("Failed to fetch data:", err)
+            toast.error(err?.message ?? "Failed to load data.")
         } finally {
             setIsLoading(false)
         }
@@ -102,8 +103,9 @@ export default function IngredientPriceChangeRequestModule() {
             toast.success(values.id ? "Price change request updated." : "Price change request submitted.")
             setIsRequestModalOpen(false)
             loadData()
-        } catch (error: any) {
-            toast.error(error?.message ?? "Failed to save request.")
+        } catch (error: unknown) {
+            const err = error as Error
+            toast.error(err?.message ?? "Failed to save request.")
         }
     }
 
