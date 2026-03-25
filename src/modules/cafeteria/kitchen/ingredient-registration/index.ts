@@ -6,6 +6,5 @@ export type {
   Brand,
   Category,
   Unit,
-  Supplier,
   SelectOption,
 } from "./types";

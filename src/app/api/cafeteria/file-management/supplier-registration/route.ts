@@ -47,6 +47,31 @@ async function parseJson(res: Response): Promise<unknown> {
     }
 }
 
+type DirectusItemEnvelope<T> = { data?: T } | null | undefined;
+
+function unwrapDirectusItem(raw: unknown): Record<string, unknown> | null {
+    if (!raw || typeof raw !== "object") return null;
+
+    if ("data" in (raw as Record<string, unknown>)) {
+        const envelope = raw as DirectusItemEnvelope<unknown>;
+        const data = envelope && typeof envelope === "object" ? envelope.data : undefined;
+        return data && typeof data === "object" ? (data as Record<string, unknown>) : null;
+    }
+
+    return raw as Record<string, unknown>;
+}
+
+function extractNumericId(raw: unknown): number {
+    const item = unwrapDirectusItem(raw);
+    const idValue = item?.id;
+    if (typeof idValue === "number") return idValue;
+    if (typeof idValue === "string") {
+        const n = Number(idValue);
+        return Number.isFinite(n) ? n : NaN;
+    }
+    return NaN;
+}
+
 function toList(raw: unknown): unknown[] {
     if (Array.isArray(raw)) return raw;
     const obj = raw as Record<string, unknown>;
@@ -272,9 +297,7 @@ export async function POST(req: NextRequest) {
                 { status: upstream.status }
             );
         }
-
-        const created = data as { data?: Record<string, unknown> } | Record<string, unknown> | null;
-        const supplierId = Number((created as any)?.data?.id ?? (created as any)?.id);
+        const supplierId = extractNumericId(data);
 
         // Optional: create join-table rows
         const ingredientIds = Array.isArray(body.ingredient_ids)

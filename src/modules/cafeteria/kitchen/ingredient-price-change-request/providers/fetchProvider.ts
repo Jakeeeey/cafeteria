@@ -27,7 +27,7 @@ export async function fetchPriceChangeRequests(): Promise<PriceChangeRequest[]> 
     return Array.isArray(json) ? json : (json.data ?? json.content ?? [])
 }
 
-// ─── GET options (categories, suppliers, etc.) ───────────────────────────────
+// ─── GET options (brands / categories / units) ───────────────────────────────
 export async function fetchIngredientOptions(): Promise<IngredientOptions> {
     const res = await fetch(`${INGREDIENTS_BASE}?options=true`, { cache: "no-store" })
     if (!res.ok) {
