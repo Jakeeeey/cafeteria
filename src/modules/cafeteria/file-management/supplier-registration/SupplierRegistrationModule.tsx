@@ -6,6 +6,13 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select";
 
 import SupplierTable from "./components/SupplierTable";
 import SupplierFormDialog from "./components/SupplierFormDialog";
@@ -23,6 +30,10 @@ import type {
 } from "./types";
 
 const EMPTY_OPTIONS: SupplierOptions = { ingredients: [] };
+
+const STATUS_ALL = "all";
+const STATUS_ACTIVE = "active";
+const STATUS_INACTIVE = "inactive";
 
 export default function SupplierRegistrationModule() {
 	// ─ List state ─────────────────────────────────────────────────────────
@@ -43,6 +54,7 @@ export default function SupplierRegistrationModule() {
 
 	// ─ Search state ───────────────────────────────────────────────────────
 	const [search, setSearch] = React.useState("");
+	const [statusFilter, setStatusFilter] = React.useState<string>(STATUS_ALL);
 
 	// ─── Load suppliers ───────────────────────────────────────────────────
 	const loadSuppliers = React.useCallback(async () => {
@@ -116,13 +128,19 @@ export default function SupplierRegistrationModule() {
 		if (q) {
 			result = result.filter((s) => s.name.toLowerCase().includes(q));
 		}
+		if (statusFilter === STATUS_ACTIVE) {
+			result = result.filter((s) => Number(s.is_active) === 1);
+		} else if (statusFilter === STATUS_INACTIVE) {
+			result = result.filter((s) => Number(s.is_active) === 0);
+		}
 		return result;
-	}, [suppliers, search]);
+	}, [suppliers, search, statusFilter]);
 
-	const hasFilters = search.trim() !== "";
+	const hasFilters = search.trim() !== "" || statusFilter !== STATUS_ALL;
 
 	function clearFilters() {
 		setSearch("");
+		setStatusFilter(STATUS_ALL);
 	}
 
 	return (
@@ -159,6 +177,17 @@ export default function SupplierRegistrationModule() {
 					value={search}
 					onChange={(e) => setSearch(e.target.value)}
 				/>
+
+				<Select value={statusFilter} onValueChange={setStatusFilter}>
+					<SelectTrigger className="h-9 w-40">
+						<SelectValue placeholder="Status" />
+					</SelectTrigger>
+					<SelectContent>
+						<SelectItem value={STATUS_ALL}>All Status</SelectItem>
+						<SelectItem value={STATUS_ACTIVE}>Active</SelectItem>
+						<SelectItem value={STATUS_INACTIVE}>Inactive</SelectItem>
+					</SelectContent>
+				</Select>
 
 				{hasFilters && (
 					<Button variant="ghost" size="sm" onClick={clearFilters}>
