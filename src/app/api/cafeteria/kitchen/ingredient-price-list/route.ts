@@ -54,7 +54,6 @@ function normalizeIngredient(raw: Record<string, unknown>): Record<string, unkno
   const brand      = typeof raw.brand_id         === "object" ? (raw.brand_id as Record<string, unknown>)         : null;
   const category   = typeof raw.category_id      === "object" ? (raw.category_id as Record<string, unknown>)      : null;
   const unit       = typeof raw.unit_of_measurement === "object" ? (raw.unit_of_measurement as Record<string, unknown>) : null;
-  const supplier   = typeof raw.supplier         === "object" ? (raw.supplier as Record<string, unknown>)         : null;
 
   return {
     id:                  raw.id,
@@ -69,8 +68,6 @@ function normalizeIngredient(raw: Record<string, unknown>): Record<string, unkno
     unit_abbreviation:   (unit?.abbreviation ?? null) as string | null,
     unit_count:          Number(raw.unit_count ?? 0),
     cost_per_unit:       Number(raw.cost_per_unit ?? 0),
-    supplier:            (supplier?.id ?? (typeof raw.supplier === "number" ? raw.supplier : null)) as number | null,
-    supplier_name:       (supplier?.supplier_name ?? supplier?.name ?? null) as string | null,
     is_active:           raw.is_active ?? 1,
     shelf_life:          raw.shelf_life ?? null,
     created_at:          raw.created_at,
@@ -91,18 +88,16 @@ export async function GET(req: NextRequest) {
 
     if (wantsOptions) {
       // Fetch all FK lookup tables in parallel
-      const [brandsRes, categoriesRes, suppliersRes] =
+      const [brandsRes, categoriesRes] =
         await Promise.all([
           proxyFetch(`${base}/items/brand`, { method: "GET", headers }),
           proxyFetch(`${base}/items/categories`, { method: "GET", headers }),
-          proxyFetch(`${base}/items/suppliers`, { method: "GET", headers }),
         ]);
 
-      const [brandsRaw, categoriesRaw, suppliersRaw] =
+      const [brandsRaw, categoriesRaw] =
         await Promise.all([
           parseJson(brandsRes),
           parseJson(categoriesRes),
-          parseJson(suppliersRes),
         ]);
 
       const toList = (raw: unknown): unknown[] =>
@@ -122,23 +117,16 @@ export async function GET(req: NextRequest) {
           label: (category.category_name ?? category.name) as string,
         };
       });
-      const suppliers = toList(suppliersRaw).map((s: unknown) => {
-        const supplier = s as Record<string, unknown>;
-        return {
-          value: (supplier.supplier_name ?? supplier.name) as string,
-          label: (supplier.supplier_name ?? supplier.name) as string,
-        };
-      });
 
       return NextResponse.json(
-        { brands, categories, suppliers },
+        { brands, categories },
         { headers: { "Cache-Control": "no-store" } }
       );
     }
 
     // Fetch all ingredients — expand all FK relations
     const upstream = await proxyFetch(
-      `${base}/items/ingredients?fields=*,brand_id.*,category_id.*,unit_of_measurement.*,supplier.*`,
+      `${base}/items/ingredients?fields=*,brand_id.*,category_id.*,unit_of_measurement.*`,
       { method: "GET", headers }
     );
     const data = await parseJson(upstream);
