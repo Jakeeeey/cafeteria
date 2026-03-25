@@ -15,11 +15,6 @@ export interface Unit {
   abbreviation?: string | null;
 }
 
-export interface Supplier {
-  id: number;
-  name: string;
-}
-
 // ─── Ingredient row returned from API ─────────────────────────────────────────
 export interface Ingredient {
   id: number;
@@ -34,8 +29,6 @@ export interface Ingredient {
   unit_abbreviation?: string | null;
   unit_count: number;
   cost_per_unit: number;
-  supplier: number | null;
-  supplier_name?: string | null;
   is_active: number;
   shelf_life: number | null;
   created_at?: string;
@@ -51,7 +44,6 @@ export interface IngredientFormValues {
   unit_of_measurement: number | null;
   unit_count: number;
   cost_per_unit: number;
-  supplier: number | null;
   is_active: number;
   shelf_life: number | null;
 }
@@ -67,5 +59,4 @@ export interface IngredientOptions {
   brands: SelectOption[];
   categories: SelectOption[];
   units: SelectOption[];
-  suppliers: SelectOption[];
 }

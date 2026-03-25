@@ -1,7 +1,7 @@
 "use client"
 
-import React, { useState, useEffect, useMemo } from "react"
-import { Search, RefreshCwIcon, PrinterIcon } from "lucide-react"
+import React, { useEffect, useMemo, useState } from "react"
+import { PrinterIcon, RefreshCwIcon, Search } from "lucide-react"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
@@ -29,12 +29,10 @@ import { printIngredientPriceList } from "./utils/printIngredientPriceList"
 export default function IngredientPriceListModule() {
     const [ingredients, setIngredients] = useState<Ingredient[]>([])
     const [searchQuery, setSearchQuery] = useState("")
-    const [supplierFilter, setSupplierFilter] = useState("all")
     const [categoryFilter, setCategoryFilter] = useState("all")
     const [brandFilter, setBrandFilter] = useState("all")
     const [isLoading, setIsLoading] = useState(true)
 
-    const [supplierOptions, setSupplierOptions] = useState<{ value: string; label: string }[]>([])
     const [categoryOptions, setCategoryOptions] = useState<{ value: string; label: string }[]>([])
     const [brandOptions, setBrandOptions] = useState<{ value: string; label: string }[]>([])
 
@@ -43,10 +41,9 @@ export default function IngredientPriceListModule() {
         try {
             const [data, options] = await Promise.all([
                 fetchActiveIngredients(),
-                fetchFilterOptions()
+                fetchFilterOptions(),
             ])
             setIngredients(data)
-            setSupplierOptions(options.suppliers || [])
             setCategoryOptions(options.categories || [])
             setBrandOptions(options.brands || [])
         } catch (error: unknown) {
@@ -62,7 +59,6 @@ export default function IngredientPriceListModule() {
         loadData()
     }, [])
 
-
     const filteredIngredients = useMemo(() => {
         const q = searchQuery.trim().toLowerCase()
 
@@ -71,13 +67,12 @@ export default function IngredientPriceListModule() {
                 const matchesSearch = i.name.toLowerCase().includes(q)
                 if (!matchesSearch) return false
             }
-            if (supplierFilter !== "all" && i.supplier_name !== supplierFilter) return false
             if (categoryFilter !== "all" && i.category_name !== categoryFilter) return false
             if (brandFilter !== "all" && i.brand_name !== brandFilter) return false
 
             return true
         })
-    }, [ingredients, searchQuery, supplierFilter, categoryFilter, brandFilter])
+    }, [ingredients, searchQuery, categoryFilter, brandFilter])
 
     return (
         <div className="flex flex-col gap-6 p-1">
@@ -86,10 +81,9 @@ export default function IngredientPriceListModule() {
                     <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                         <div>
                             <CardTitle>Ingredient Price List</CardTitle>
-                            <CardDescription>
-                                View active ingredient prices and details
-                            </CardDescription>
+                            <CardDescription>View active ingredient prices and details</CardDescription>
                         </div>
+
                         <div className="flex flex-wrap items-center gap-2 sm:ml-auto">
                             <div className="relative w-full sm:w-52">
                                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -100,20 +94,6 @@ export default function IngredientPriceListModule() {
                                     onChange={(e) => setSearchQuery(e.target.value)}
                                 />
                             </div>
-
-                            <Select value={supplierFilter} onValueChange={setSupplierFilter}>
-                                <SelectTrigger className="w-full sm:w-44">
-                                    <SelectValue placeholder="All Suppliers" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="all">All Suppliers</SelectItem>
-                                    {supplierOptions.map((opt) => (
-                                        <SelectItem key={opt.value} value={opt.value}>
-                                            {opt.label}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
 
                             <Select value={categoryFilter} onValueChange={setCategoryFilter}>
                                 <SelectTrigger className="w-full sm:w-44">
@@ -165,7 +145,6 @@ export default function IngredientPriceListModule() {
                                 disabled={isLoading}
                                 onClick={() => {
                                     setSearchQuery("")
-                                    setSupplierFilter("all")
                                     setCategoryFilter("all")
                                     setBrandFilter("all")
                                     loadData()
@@ -178,11 +157,9 @@ export default function IngredientPriceListModule() {
                         </div>
                     </div>
                 </CardHeader>
+
                 <CardContent>
-                    <IngredientPriceListTable
-                        ingredients={filteredIngredients}
-                        isLoading={isLoading}
-                    />
+                    <IngredientPriceListTable ingredients={filteredIngredients} isLoading={isLoading} />
                 </CardContent>
             </Card>
         </div>

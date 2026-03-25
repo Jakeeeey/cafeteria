@@ -34,7 +34,6 @@ const EMPTY_OPTIONS: IngredientOptions = {
   brands: [],
   categories: [],
   units: [],
-  suppliers: [],
 };
 
 const ALL = "__all__";
@@ -60,7 +59,6 @@ export default function IngredientRegistrationModule() {
   const [search, setSearch] = React.useState("");
   const [filterBrand, setFilterBrand] = React.useState(ALL);
   const [filterCategory, setFilterCategory] = React.useState(ALL);
-  const [filterSupplier, setFilterSupplier] = React.useState(ALL);
 
   // ─── Load ingredients ──────────────────────────────────────────────────────
   const loadIngredients = React.useCallback(async () => {
@@ -75,7 +73,7 @@ export default function IngredientRegistrationModule() {
     }
   }, []);
 
-  // ─── Load options (brands/categories/units/suppliers) ──────────────────────
+  // ─── Load options (brands/categories/units) ───────────────────────────────
   const loadOptions = React.useCallback(async () => {
     setOptionsLoading(true);
     try {
@@ -135,14 +133,12 @@ export default function IngredientRegistrationModule() {
   const hasFilters =
     search.trim() !== "" ||
     filterBrand !== ALL ||
-    filterCategory !== ALL ||
-    filterSupplier !== ALL;
+    filterCategory !== ALL;
 
   function clearFilters() {
     setSearch("");
     setFilterBrand(ALL);
     setFilterCategory(ALL);
-    setFilterSupplier(ALL);
   }
 
   // ─── Filtered list ───────────────────────────────────────────────────────
@@ -156,8 +152,7 @@ export default function IngredientRegistrationModule() {
           i.name.toLowerCase().includes(q) ||
           (i.description ?? "").toLowerCase().includes(q) ||
           (i.brand_name ?? "").toLowerCase().includes(q) ||
-          (i.category_name ?? "").toLowerCase().includes(q) ||
-          (i.supplier_name ?? "").toLowerCase().includes(q)
+          (i.category_name ?? "").toLowerCase().includes(q)
       );
     }
 
@@ -173,14 +168,8 @@ export default function IngredientRegistrationModule() {
       );
     }
 
-    if (filterSupplier !== ALL) {
-      result = result.filter(
-        (i) => String(i.supplier) === filterSupplier
-      );
-    }
-
     return result;
-  }, [ingredients, search, filterBrand, filterCategory, filterSupplier]);
+  }, [ingredients, search, filterBrand, filterCategory]);
 
   // ─── Render ─────────────────────────────────────────────────────────────
   return (
@@ -250,21 +239,6 @@ export default function IngredientRegistrationModule() {
             {options.categories.map((c) => (
               <SelectItem key={c.value} value={String(c.value)}>
                 {c.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        {/* Supplier filter */}
-        <Select value={filterSupplier} onValueChange={setFilterSupplier}>
-          <SelectTrigger className="h-9 w-40">
-            <SelectValue placeholder="Supplier" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={ALL}>All Suppliers</SelectItem>
-            {options.suppliers.map((s) => (
-              <SelectItem key={s.value} value={String(s.value)}>
-                {s.label}
               </SelectItem>
             ))}
           </SelectContent>

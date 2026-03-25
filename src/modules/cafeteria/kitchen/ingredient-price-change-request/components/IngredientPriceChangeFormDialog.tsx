@@ -104,10 +104,6 @@ export default function IngredientPriceChangeFormDialog({
                                 <span className="font-medium">{ingredient.description || "—"}</span>
                             </div>
                             <div className="grid grid-cols-2 text-sm border-b pb-2 last:border-0 last:pb-0">
-                                <span className="text-muted-foreground font-semibold uppercase tracking-tighter text-[11px]">Supplier:</span>
-                                <span className="font-medium">{ingredient.supplier_name || "—"}</span>
-                            </div>
-                            <div className="grid grid-cols-2 text-sm border-b pb-2 last:border-0 last:pb-0">
                                 <span className="text-muted-foreground font-semibold uppercase tracking-tighter text-[11px]">Brand:</span>
                                 <span className="font-medium">{ingredient.brand_name || "—"}</span>
                             </div>

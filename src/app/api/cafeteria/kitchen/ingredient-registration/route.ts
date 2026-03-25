@@ -70,7 +70,6 @@ function normalizeIngredient(raw: Record<string, unknown>): Record<string, unkno
   const brand      = typeof raw.brand_id         === "object" ? raw.brand_id as Record<string, unknown>        : null;
   const category   = typeof raw.category_id      === "object" ? raw.category_id as Record<string, unknown>     : null;
   const unit       = typeof raw.unit_of_measurement === "object" ? raw.unit_of_measurement as Record<string, unknown> : null;
-  const supplier   = typeof raw.supplier         === "object" ? raw.supplier as Record<string, unknown>        : null;
 
   return {
     id:                  raw.id,
@@ -85,8 +84,6 @@ function normalizeIngredient(raw: Record<string, unknown>): Record<string, unkno
     unit_abbreviation:   unit?.abbreviation ?? null,
     unit_count:          Number(raw.unit_count ?? 0),
     cost_per_unit:       Number(raw.cost_per_unit ?? 0),
-    supplier:            supplier?.id ?? (typeof raw.supplier === "number" ? raw.supplier : null),
-    supplier_name:       supplier?.supplier_name ?? supplier?.name ?? null,
     is_active:           raw.is_active ?? 1,
     shelf_life:          raw.shelf_life ?? null,
     created_at:          raw.created_at,
@@ -100,7 +97,7 @@ function normalizeIngredient(raw: Record<string, unknown>): Record<string, unkno
 //    → Directus: GET {base}/items/ingredients
 //
 //  GET /api/cafeteria/kitchen/ingredient-registration?options=true
-//    → fetches brand, categories, units, suppliers in parallel from Directus
+//    → fetches brand, categories, units in parallel from Directus
 
 export async function GET(req: NextRequest) {
   try {
@@ -111,29 +108,25 @@ export async function GET(req: NextRequest) {
 
     if (wantsOptions) {
       // Fetch all FK lookup tables in parallel from Directus
-      const [brandsRes, categoriesRes, unitsRes, suppliersRes] =
+      const [brandsRes, categoriesRes, unitsRes] =
         await Promise.all([
           proxyFetch(`${base}/items/brand?filter[is_cafeteria][_eq]=1`, { method: "GET", headers }),
           proxyFetch(`${base}/items/categories?filter[is_cafeteria][_eq]=1`, { method: "GET", headers }),
           proxyFetch(`${base}/items/units`, { method: "GET", headers }),
-          proxyFetch(`${base}/items/suppliers`, { method: "GET", headers }),
         ]);
 
-      console.log("[options] status → brands:", brandsRes.status, "categories:", categoriesRes.status, "units:", unitsRes.status, "suppliers:", suppliersRes.status);
+      console.log("[options] status → brands:", brandsRes.status, "categories:", categoriesRes.status, "units:", unitsRes.status);
 
-      const [brandsRaw, categoriesRaw, unitsRaw, suppliersRaw] =
-        await Promise.all([
-          parseJson(brandsRes),
-          parseJson(categoriesRes),
-          parseJson(unitsRes),
-          parseJson(suppliersRes),
-        ]);
+      const [brandsRaw, categoriesRaw, unitsRaw] = await Promise.all([
+        parseJson(brandsRes),
+        parseJson(categoriesRes),
+        parseJson(unitsRes),
+      ]);
 
       // Log raw responses so we can see actual field names & collection names
       console.log("[options] brandsRaw:", JSON.stringify(brandsRaw)?.slice(0, 300));
       console.log("[options] categoriesRaw:", JSON.stringify(categoriesRaw)?.slice(0, 300));
       console.log("[options] unitsRaw:", JSON.stringify(unitsRaw)?.slice(0, 300));
-      console.log("[options] suppliersRaw:", JSON.stringify(suppliersRaw)?.slice(0, 300));
 
       // Directus wraps results in { data: [] }
       const toList = (raw: unknown): unknown[] => {
@@ -165,25 +158,18 @@ export async function GET(req: NextRequest) {
           label: unit.abbreviation ? `${unit.unit_name ?? unit.name} (${unit.abbreviation})` : (unit.unit_name ?? unit.name),
         };
       });
-      const suppliers = toList(suppliersRaw).map((s: unknown) => {
-        const supplier = s as Record<string, unknown>;
-        return {
-          value: supplier.id,
-          label: supplier.supplier_name ?? supplier.name,
-        };
-      });
 
-      console.log("[options] counts → brands:", brands.length, "categories:", categories.length, "units:", units.length, "suppliers:", suppliers.length);
+      console.log("[options] counts → brands:", brands.length, "categories:", categories.length, "units:", units.length);
 
       return NextResponse.json(
-        { brands, categories, units, suppliers },
+        { brands, categories, units },
         { headers: { "Cache-Control": "no-store" } }
       );
     }
 
     // Default: list all ingredients — expand all FK relations in one request
     const upstream = await proxyFetch(
-      `${base}/items/ingredients?fields=*,brand_id.*,category_id.*,unit_of_measurement.*,supplier.*`,
+      `${base}/items/ingredients?fields=*,brand_id.*,category_id.*,unit_of_measurement.*`,
       { method: "GET", headers }
     );
     const data = await parseJson(upstream);

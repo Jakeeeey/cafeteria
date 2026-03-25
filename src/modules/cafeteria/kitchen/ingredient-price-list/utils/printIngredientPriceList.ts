@@ -1,4 +1,4 @@
-import type { Ingredient } from "../../ingredient-registration/types"
+import type { Ingredient } from "../types"
 
 /**
  * Generates an HTML printout of the current ingredient price list.
@@ -10,7 +10,6 @@ export function printIngredientPriceList(ingredients: Ingredient[]) {
             <td style="border: 1px solid #ddd; padding: 8px; font-size: 11px; text-align: center;">${index + 1}</td>
             <td style="border: 1px solid #ddd; padding: 8px; font-size: 11px;"><strong>${item.name}</strong></td>
             <td style="border: 1px solid #ddd; padding: 8px; font-size: 11px;">${item.description ?? "—"}</td>
-            <td style="border: 1px solid #ddd; padding: 8px; font-size: 11px;">${item.supplier_name ?? "—"}</td>
             <td style="border: 1px solid #ddd; padding: 8px; font-size: 11px;">${item.category_name ?? "—"}</td>
             <td style="border: 1px solid #ddd; padding: 8px; font-size: 11px;">${item.brand_name ?? "—"}</td>
             <td style="border: 1px solid #ddd; padding: 8px; font-size: 11px;">${item.unit_abbreviation ?? item.unit_name ?? "—"}</td>
@@ -64,18 +63,17 @@ export function printIngredientPriceList(ingredients: Ingredient[]) {
         <thead>
             <tr>
                 <th style="width: 4%; text-align: center;">No.</th>
-                <th style="width: 13%">Name</th>
-                <th style="width: 17%">Description</th>
-                <th style="width: 12%">Supplier</th>
-                <th style="width: 12%">Category</th>
-                <th style="width: 10%">Brand</th>
+                <th style="width: 14%">Name</th>
+                <th style="width: 19%">Description</th>
+                <th style="width: 14%">Category</th>
+                <th style="width: 12%">Brand</th>
                 <th style="width: 10%">Unit of Measure</th>
                 <th style="width: 9%; text-align: center;">Unit Count</th>
                 <th style="width: 13%; text-align: right;">Cost per unit</th>
             </tr>
         </thead>
         <tbody>
-            ${rows || `<tr><td colspan="9" style="text-align:center;padding:30px;color:#94a3b8;font-style:italic">No ingredients match the current filters.</td></tr>`}
+            ${rows || `<tr><td colspan="8" style="text-align:center;padding:30px;color:#94a3b8;font-style:italic">No ingredients match the current filters.</td></tr>`}
         </tbody>
     </table>
 

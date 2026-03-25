@@ -31,13 +31,11 @@ export default function IngredientPriceChangeRequestModule() {
     const [ingredients, setIngredients] = useState<Ingredient[]>([])
     const [requests, setRequests] = useState<PriceChangeRequest[]>([])
     const [searchQuery, setSearchQuery] = useState("")
-    const [supplierFilter, setSupplierFilter] = useState("all")
     const [categoryFilter, setCategoryFilter] = useState("all")
     const [isRequestModalOpen, setIsRequestModalOpen] = useState(false)
     const [selectedIngredient, setSelectedIngredient] = useState<Ingredient | null>(null)
     const [isLoading, setIsLoading] = useState(true)
 
-    const [supplierOptions, setSupplierOptions] = useState<SelectOption[]>([])
     const [categoryOptions, setCategoryOptions] = useState<SelectOption[]>([])
 
     const loadData = async () => {
@@ -49,7 +47,6 @@ export default function IngredientPriceChangeRequestModule() {
                 fetchPriceChangeRequests(),
             ])
             setIngredients(ingData)
-            setSupplierOptions(optData.suppliers)
             setCategoryOptions(optData.categories)
             setRequests(reqData)
         } catch (error: unknown) {
@@ -67,7 +64,6 @@ export default function IngredientPriceChangeRequestModule() {
 
     const filteredIngredients = React.useMemo(() => {
         const q = searchQuery.trim().toLowerCase()
-        const sFilter = supplierFilter === "all" ? null : Number(supplierFilter)
         const cFilter = categoryFilter === "all" ? null : Number(categoryFilter)
 
         return ingredients
@@ -78,19 +74,16 @@ export default function IngredientPriceChangeRequestModule() {
                         i.name.toLowerCase().includes(q) ||
                         (i.description ?? "").toLowerCase().includes(q) ||
                         (i.brand_name ?? "").toLowerCase().includes(q) ||
-                        (i.category_name ?? "").toLowerCase().includes(q) ||
-                        (i.supplier_name ?? "").toLowerCase().includes(q)
+                        (i.category_name ?? "").toLowerCase().includes(q)
                     if (!matchesSearch) return false
                 }
-                // Supplier filter
-                if (sFilter !== null && i.supplier !== sFilter) return false
                 // Category filter
                 if (cFilter !== null && i.category_id !== cFilter) return false
 
                 return true
             })
             .sort((a, b) => a.id - b.id)
-    }, [ingredients, searchQuery, supplierFilter, categoryFilter])
+            }, [ingredients, searchQuery, categoryFilter])
 
     const handleOpenRequestModal = (ingredient: Ingredient) => {
         setSelectedIngredient(ingredient)
@@ -131,21 +124,6 @@ export default function IngredientPriceChangeRequestModule() {
                                     onChange={(e) => setSearchQuery(e.target.value)}
                                 />
                             </div>
-
-                            {/* Supplier Filter */}
-                            <Select value={supplierFilter} onValueChange={setSupplierFilter}>
-                                <SelectTrigger className="w-full sm:w-44">
-                                    <SelectValue placeholder="All Suppliers" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="all">All Suppliers</SelectItem>
-                                    {supplierOptions.map((opt) => (
-                                        <SelectItem key={opt.value} value={String(opt.value)}>
-                                            {opt.label}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
 
                             {/* Category Filter */}
                             <Select value={categoryFilter} onValueChange={setCategoryFilter}>

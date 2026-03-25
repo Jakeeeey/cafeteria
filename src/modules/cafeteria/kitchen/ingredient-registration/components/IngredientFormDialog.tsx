@@ -47,7 +47,6 @@ const schema = z.object({
   unit_of_measurement: z.number().min(1, "Unit of measurement is required"),
   unit_count: z.number().positive("Unit count must be greater than 0"),
   cost_per_unit: z.number().positive("Cost per unit must be greater than 0"),
-  supplier: z.number().nullable(),
   is_active: z.number(),
   shelf_life: z.number().positive("Shelf life must be greater than 0").nullable(),
 });
@@ -101,7 +100,6 @@ export default function IngredientFormDialog({
       unit_of_measurement: 0,
       unit_count: 1,
       cost_per_unit: 0,
-      supplier: null,
       is_active: 1,
       shelf_life: null,
     },
@@ -131,7 +129,6 @@ export default function IngredientFormDialog({
         unit_of_measurement: editTarget.unit_of_measurement,
         unit_count: Number(editTarget.unit_count),
         cost_per_unit: Number(editTarget.cost_per_unit),
-        supplier: editTarget.supplier ?? null,
         is_active: editTarget.is_active,
         shelf_life: editTarget.shelf_life ?? null,
       });
@@ -144,7 +141,6 @@ export default function IngredientFormDialog({
         unit_of_measurement: 0,
         unit_count: 1,
         cost_per_unit: 0,
-        supplier: null,
         is_active: 1,
         shelf_life: null,
       });
@@ -170,7 +166,6 @@ export default function IngredientFormDialog({
         unit_of_measurement: values.unit_of_measurement,
         unit_count: values.unit_count,
         cost_per_unit: values.cost_per_unit,
-        supplier: values.supplier,
         is_active: values.is_active,
         shelf_life: values.shelf_life,
       },
@@ -454,39 +449,6 @@ export default function IngredientFormDialog({
                 )}
               />
             </div>
-
-            {/* Supplier */}
-            <FormField
-              control={form.control}
-              name="supplier"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Supplier</FormLabel>
-                  <Select
-                    disabled={optionsLoading}
-                    value={toSelectString(field.value)}
-                    onValueChange={(v) => field.onChange(fromSelectString(v))}
-                  >
-                    <FormControl>
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select supplier…" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value={NONE_VALUE}>
-                        <span className="text-muted-foreground">None</span>
-                      </SelectItem>
-                      {options.suppliers.map((s) => (
-                        <SelectItem key={s.value} value={String(s.value)}>
-                          {s.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
 
             <DialogFooter className="pt-2">
               <Button
