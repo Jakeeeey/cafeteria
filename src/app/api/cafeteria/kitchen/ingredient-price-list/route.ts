@@ -90,8 +90,8 @@ export async function GET(req: NextRequest) {
       // Fetch all FK lookup tables in parallel
       const [brandsRes, categoriesRes] =
         await Promise.all([
-          proxyFetch(`${base}/items/brand`, { method: "GET", headers }),
-          proxyFetch(`${base}/items/categories`, { method: "GET", headers }),
+          proxyFetch(`${base}/items/brand?filter[is_cafeteria][_eq]=1`, { method: "GET", headers }),
+          proxyFetch(`${base}/items/categories?filter[is_cafeteria][_eq]=1`, { method: "GET", headers }),
         ]);
 
       const [brandsRaw, categoriesRaw] =
@@ -106,14 +106,14 @@ export async function GET(req: NextRequest) {
       const brands = toList(brandsRaw).map((b: unknown) => {
         const brand = b as Record<string, unknown>;
         return {
-          value: (brand.brand_name ?? brand.name) as string,
+          value: String(brand.brand_id ?? brand.id),
           label: (brand.brand_name ?? brand.name) as string,
         };
       });
       const categories = toList(categoriesRaw).map((c: unknown) => {
         const category = c as Record<string, unknown>;
         return {
-          value: (category.category_name ?? category.name) as string,
+          value: String(category.category_id ?? category.id),
           label: (category.category_name ?? category.name) as string,
         };
       });

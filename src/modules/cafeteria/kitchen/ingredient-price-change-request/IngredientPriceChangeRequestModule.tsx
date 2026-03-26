@@ -13,13 +13,7 @@ import {
     CardTitle,
 } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select"
+import { SearchableSelect } from "@/components/ui/searchable-select"
 
 import IngredientPriceChangeTable from "./components/IngredientPriceChangeTable"
 import IngredientPriceChangeFormDialog from "./components/IngredientPriceChangeFormDialog"
@@ -32,11 +26,13 @@ export default function IngredientPriceChangeRequestModule() {
     const [requests, setRequests] = useState<PriceChangeRequest[]>([])
     const [searchQuery, setSearchQuery] = useState("")
     const [categoryFilter, setCategoryFilter] = useState("all")
+    const [brandFilter, setBrandFilter] = useState("all")
     const [isRequestModalOpen, setIsRequestModalOpen] = useState(false)
     const [selectedIngredient, setSelectedIngredient] = useState<Ingredient | null>(null)
     const [isLoading, setIsLoading] = useState(true)
 
     const [categoryOptions, setCategoryOptions] = useState<SelectOption[]>([])
+    const [brandOptions, setBrandOptions] = useState<SelectOption[]>([])
 
     const loadData = async () => {
         setIsLoading(true)
@@ -48,6 +44,7 @@ export default function IngredientPriceChangeRequestModule() {
             ])
             setIngredients(ingData)
             setCategoryOptions(optData.categories)
+            setBrandOptions(optData.brands || [])
             setRequests(reqData)
         } catch (error: unknown) {
             const err = error as Error
@@ -65,6 +62,7 @@ export default function IngredientPriceChangeRequestModule() {
     const filteredIngredients = React.useMemo(() => {
         const q = searchQuery.trim().toLowerCase()
         const cFilter = categoryFilter === "all" ? null : Number(categoryFilter)
+        const bFilter = brandFilter === "all" ? null : Number(brandFilter)
 
         return ingredients
             .filter((i) => {
@@ -79,11 +77,23 @@ export default function IngredientPriceChangeRequestModule() {
                 }
                 // Category filter
                 if (cFilter !== null && i.category_id !== cFilter) return false
+                // Brand filter
+                if (bFilter !== null && i.brand_id !== bFilter) return false
 
                 return true
             })
             .sort((a, b) => a.id - b.id)
-            }, [ingredients, searchQuery, categoryFilter])
+    }, [ingredients, searchQuery, categoryFilter, brandFilter])
+
+    const categoryFilterOptions = React.useMemo(() => [
+        { value: "all", label: "All Categories" },
+        ...categoryOptions.map(opt => ({ value: String(opt.value), label: opt.label }))
+    ], [categoryOptions])
+
+    const brandFilterOptions = React.useMemo(() => [
+        { value: "all", label: "All Brands" },
+        ...brandOptions.map(opt => ({ value: String(opt.value), label: opt.label }))
+    ], [brandOptions])
 
     const handleOpenRequestModal = (ingredient: Ingredient) => {
         setSelectedIngredient(ingredient)
@@ -126,19 +136,22 @@ export default function IngredientPriceChangeRequestModule() {
                             </div>
 
                             {/* Category Filter */}
-                            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                                <SelectTrigger className="w-full sm:w-44">
-                                    <SelectValue placeholder="All Categories" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="all">All Categories</SelectItem>
-                                    {categoryOptions.map((opt) => (
-                                        <SelectItem key={opt.value} value={String(opt.value)}>
-                                            {opt.label}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                            <SearchableSelect
+                                value={categoryFilter}
+                                onValueChange={setCategoryFilter}
+                                options={categoryFilterOptions}
+                                placeholder="All Categories"
+                                className="w-full sm:w-44"
+                            />
+
+                            {/* Brand Filter */}
+                            <SearchableSelect
+                                value={brandFilter}
+                                onValueChange={setBrandFilter}
+                                options={brandFilterOptions}
+                                placeholder="All Brands"
+                                className="w-full sm:w-44"
+                            />
 
                             {/* Refresh */}
                             <Button
@@ -146,7 +159,12 @@ export default function IngredientPriceChangeRequestModule() {
                                 size="icon"
                                 title="Refresh list"
                                 disabled={isLoading}
-                                onClick={loadData}
+                                onClick={() => {
+                                    setSearchQuery("")
+                                    setCategoryFilter("all")
+                                    setBrandFilter("all")
+                                    loadData()
+                                }}
                                 className="w-full sm:w-10 sm:h-10 shrink-0"
                             >
                                 <RefreshCwIcon className={`size-4 ${isLoading ? "animate-spin" : ""}`} />
