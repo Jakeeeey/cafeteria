@@ -13,13 +13,7 @@ import {
     CardTitle,
 } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select"
+import { SearchableSelect } from "@/components/ui/searchable-select"
 
 import IngredientPriceListTable from "./components/IngredientPriceListTable"
 import { fetchActiveIngredients, fetchFilterOptions } from "./providers/fetchProvider"
@@ -61,18 +55,35 @@ export default function IngredientPriceListModule() {
 
     const filteredIngredients = useMemo(() => {
         const q = searchQuery.trim().toLowerCase()
+        const cFilter = categoryFilter === "all" ? null : Number(categoryFilter)
+        const bFilter = brandFilter === "all" ? null : Number(brandFilter)
 
         return ingredients.filter((i) => {
             if (q) {
-                const matchesSearch = i.name.toLowerCase().includes(q)
+                const matchesSearch = 
+                    i.name.toLowerCase().includes(q) ||
+                    (i.description ?? "").toLowerCase().includes(q) ||
+                    (i.brand_name ?? "").toLowerCase().includes(q) ||
+                    (i.category_name ?? "").toLowerCase().includes(q)
+                
                 if (!matchesSearch) return false
             }
-            if (categoryFilter !== "all" && i.category_name !== categoryFilter) return false
-            if (brandFilter !== "all" && i.brand_name !== brandFilter) return false
+            if (cFilter !== null && i.category_id !== cFilter) return false
+            if (bFilter !== null && i.brand_id !== bFilter) return false
 
             return true
         })
     }, [ingredients, searchQuery, categoryFilter, brandFilter])
+
+    const categoryFilterOptions = useMemo(() => 
+        [{ value: "all", label: "All Categories" }, ...categoryOptions],
+        [categoryOptions]
+    )
+
+    const brandFilterOptions = useMemo(() => 
+        [{ value: "all", label: "All Brands" }, ...brandOptions],
+        [brandOptions]
+    )
 
     return (
         <div className="flex flex-col gap-6 p-1">
@@ -85,43 +96,31 @@ export default function IngredientPriceListModule() {
                         </div>
 
                         <div className="flex flex-wrap items-center gap-2 sm:ml-auto">
-                            <div className="relative w-full sm:w-52">
+                            <div className="relative w-full sm:w-64">
                                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                                 <Input
-                                    placeholder="Search by name..."
+                                    placeholder="Search by name, brand, category..."
                                     className="pl-8"
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
                                 />
                             </div>
 
-                            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                                <SelectTrigger className="w-full sm:w-44">
-                                    <SelectValue placeholder="All Categories" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="all">All Categories</SelectItem>
-                                    {categoryOptions.map((opt) => (
-                                        <SelectItem key={opt.value} value={opt.value}>
-                                            {opt.label}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                            <SearchableSelect
+                                value={categoryFilter}
+                                onValueChange={setCategoryFilter}
+                                options={categoryFilterOptions}
+                                placeholder="All Categories"
+                                className="w-full sm:w-44"
+                            />
 
-                            <Select value={brandFilter} onValueChange={setBrandFilter}>
-                                <SelectTrigger className="w-full sm:w-44">
-                                    <SelectValue placeholder="All Brands" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="all">All Brands</SelectItem>
-                                    {brandOptions.map((opt) => (
-                                        <SelectItem key={opt.value} value={opt.value}>
-                                            {opt.label}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                            <SearchableSelect
+                                value={brandFilter}
+                                onValueChange={setBrandFilter}
+                                options={brandFilterOptions}
+                                placeholder="All Brands"
+                                className="w-full sm:w-44"
+                            />
 
                             <Button
                                 variant="outline"
