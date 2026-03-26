@@ -6,13 +6,7 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 
 import IngredientTable from "./components/IngredientTable";
 import IngredientFormDialog from "./components/IngredientFormDialog";
@@ -171,6 +165,22 @@ export default function IngredientRegistrationModule() {
     return result;
   }, [ingredients, search, filterBrand, filterCategory]);
 
+  const brandFilterOptions = React.useMemo(
+    () => [
+      { value: ALL, label: "All Brands" },
+      ...options.brands.map((b) => ({ value: String(b.value), label: b.label })),
+    ],
+    [options.brands]
+  );
+
+  const categoryFilterOptions = React.useMemo(
+    () => [
+      { value: ALL, label: "All Categories" },
+      ...options.categories.map((c) => ({ value: String(c.value), label: c.label })),
+    ],
+    [options.categories]
+  );
+
   // ─── Render ─────────────────────────────────────────────────────────────
   return (
     <div className="flex flex-col gap-4">
@@ -215,34 +225,24 @@ export default function IngredientRegistrationModule() {
         />
 
         {/* Brand filter */}
-        <Select value={filterBrand} onValueChange={setFilterBrand}>
-          <SelectTrigger className="h-9 w-40">
-            <SelectValue placeholder="Brand" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={ALL}>All Brands</SelectItem>
-            {options.brands.map((b) => (
-              <SelectItem key={b.value} value={String(b.value)}>
-                {b.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <SearchableSelect
+          value={filterBrand}
+          onValueChange={setFilterBrand}
+          options={brandFilterOptions}
+          placeholder="All Brands"
+          className="h-9 w-40"
+          disabled={optionsLoading}
+        />
 
         {/* Category filter */}
-        <Select value={filterCategory} onValueChange={setFilterCategory}>
-          <SelectTrigger className="h-9 w-40">
-            <SelectValue placeholder="Category" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={ALL}>All Categories</SelectItem>
-            {options.categories.map((c) => (
-              <SelectItem key={c.value} value={String(c.value)}>
-                {c.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <SearchableSelect
+          value={filterCategory}
+          onValueChange={setFilterCategory}
+          options={categoryFilterOptions}
+          placeholder="All Categories"
+          className="h-9 w-40"
+          disabled={optionsLoading}
+        />
 
         {/* Clear filters */}
         {hasFilters && (
