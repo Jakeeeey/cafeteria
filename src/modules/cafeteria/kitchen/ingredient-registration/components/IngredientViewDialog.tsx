@@ -5,7 +5,6 @@ import {
   PackageIcon,
   TagIcon,
   LayersIcon,
-  TruckIcon,
   RulerIcon,
   CoinsIcon,
   ActivityIcon,
@@ -180,11 +179,6 @@ export default function IngredientViewDialog({
                   </Badge>
                 ) : (
                   <span className="text-muted-foreground text-sm">No category specified</span>
-                )}
-              </InfoRow>
-              <InfoRow icon={TruckIcon} label="Supplier">
-                {ingredient.supplier_name ?? (
-                  <span className="text-muted-foreground text-sm">No supplier specified</span>
                 )}
               </InfoRow>
             </div>

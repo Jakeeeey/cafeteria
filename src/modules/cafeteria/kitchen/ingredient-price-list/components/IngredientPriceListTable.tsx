@@ -49,7 +49,6 @@ export default function IngredientPriceListTable({
                             <TableHead className="w-[50px]">No.</TableHead>
                             <TableHead>Name</TableHead>
                             <TableHead>Description</TableHead>
-                            <TableHead>Supplier</TableHead>
                             <TableHead>Category</TableHead>
                             <TableHead>Brand</TableHead>
                             <TableHead>Unit of Measurement</TableHead>
@@ -64,7 +63,6 @@ export default function IngredientPriceListTable({
                                     <TableCell><Skeleton className="h-4 w-8" /></TableCell>
                                     <TableCell><Skeleton className="h-4 w-20" /></TableCell>
                                     <TableCell><Skeleton className="h-4 w-24" /></TableCell>
-                                    <TableCell><Skeleton className="h-4 w-20" /></TableCell>
                                     <TableCell><Skeleton className="h-4 w-16" /></TableCell>
                                     <TableCell><Skeleton className="h-4 w-16" /></TableCell>
                                     <TableCell><Skeleton className="h-4 w-16" /></TableCell>
@@ -79,9 +77,6 @@ export default function IngredientPriceListTable({
                                     <TableCell className="font-medium whitespace-nowrap">{ingredient.name}</TableCell>
                                     <TableCell className="max-w-[150px] truncate" title={ingredient.description ?? ""}>
                                         {ingredient.description || "—"}
-                                    </TableCell>
-                                    <TableCell className="max-w-[120px] truncate" title={ingredient.supplier_name ?? ""}>
-                                        {ingredient.supplier_name || "—"}
                                     </TableCell>
                                     <TableCell className="max-w-[100px] truncate" title={ingredient.category_name ?? ""}>
                                         {ingredient.category_name || "—"}
@@ -107,7 +102,7 @@ export default function IngredientPriceListTable({
                             ))
                         ) : (
                             <TableRow>
-                                <TableCell colSpan={9} className="h-24 text-center">
+                                <TableCell colSpan={8} className="h-24 text-center">
                                     No ingredients found.
                                 </TableCell>
                             </TableRow>

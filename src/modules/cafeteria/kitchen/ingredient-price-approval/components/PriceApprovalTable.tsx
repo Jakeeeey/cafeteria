@@ -65,7 +65,6 @@ export default function PriceApprovalTable({
                     <TableHeader>
                         <TableRow>
                             <TableHead>Ingredient Name</TableHead>
-                            <TableHead>Supplier</TableHead>
                             <TableHead>Unit of Measurement</TableHead>
                             <TableHead className="text-right">Current Price</TableHead>
                             <TableHead className="text-right">New Price Request</TableHead>
@@ -77,7 +76,7 @@ export default function PriceApprovalTable({
                         {isLoading ? (
                             Array.from({ length: 5 }).map((_, index) => (
                                 <TableRow key={`skeleton-${index}`}>
-                                    {Array.from({ length: 7 }).map((__, ci) => (
+                                    {Array.from({ length: 6 }).map((__, ci) => (
                                         <TableCell key={ci}><Skeleton className="h-4 w-full" /></TableCell>
                                     ))}
                                 </TableRow>
@@ -88,9 +87,6 @@ export default function PriceApprovalTable({
                                     <TableRow key={request.id}>
                                         <TableCell className="font-medium whitespace-nowrap py-3">
                                             {request.ingredient_name}
-                                        </TableCell>
-                                        <TableCell className="whitespace-nowrap py-3">
-                                            {request.supplier_name ?? <span className="text-muted-foreground">—</span>}
                                         </TableCell>
                                         <TableCell className="whitespace-nowrap py-3">
                                             {request.unit_abbreviation ?? request.unit_name ?? "—"}
@@ -119,7 +115,7 @@ export default function PriceApprovalTable({
                             })
                         ) : (
                             <TableRow>
-                                <TableCell colSpan={7} className="h-24 text-center">
+                                <TableCell colSpan={6} className="h-24 text-center">
                                     No pending price requests found.
                                 </TableCell>
                             </TableRow>

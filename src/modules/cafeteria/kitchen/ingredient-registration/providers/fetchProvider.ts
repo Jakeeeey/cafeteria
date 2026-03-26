@@ -14,7 +14,7 @@ export async function fetchIngredients(): Promise<Ingredient[]> {
   return Array.isArray(json) ? json : (json.data ?? json.content ?? []);
 }
 
-// ─── GET dropdown options (brands / categories / units / suppliers) ────────────
+// ─── GET dropdown options (brands / categories / units) ─────────────────────
 export async function fetchOptions(): Promise<IngredientOptions> {
   const res = await fetch(`${BASE}?options=true`, { cache: "no-store" });
   if (!res.ok) {
