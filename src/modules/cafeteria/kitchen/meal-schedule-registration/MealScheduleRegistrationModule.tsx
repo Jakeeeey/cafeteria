@@ -79,11 +79,34 @@ export default function MealScheduleRegistrationModule() {
     () => formatWeekRange(currentMonday),
     [currentMonday]
   );
+  const currentWeekIso = toISODate(getMondayOfWeek(new Date()));
+  const selectedWeekIso = toISODate(currentMonday);
+  const isPastWeekSelected = selectedWeekIso < currentWeekIso;
+  const canGoToPrevWeek = selectedWeekIso > currentWeekIso;
 
   // ─── Weekly schedule state ─────────────────────────────────────────────────
   const [schedule, setSchedule] = React.useState<WeeklySchedule>(() =>
     readStoredSchedule(toISODate(readStoredMonday()))
   );
+  const entryCount = React.useMemo(
+    () => countScheduleEntries(schedule),
+    [schedule]
+  );
+
+  const hasDuplicateMealsInWeek = React.useMemo(() => {
+    const seenMealIds = new Set<number>();
+    for (const daySchedule of Object.values(schedule)) {
+      for (const entries of Object.values(daySchedule)) {
+        for (const entry of entries) {
+          if (seenMealIds.has(entry.meal.id)) {
+            return true;
+          }
+          seenMealIds.add(entry.meal.id);
+        }
+      }
+    }
+    return false;
+  }, [schedule]);
   // ─── Current user ──────────────────────────────────────────────────────────────────
   const [currentUserId, setCurrentUserId] = React.useState<number | null>(null);
   // ─── Review dialog ───────────────────────────────────────────────────────
@@ -136,6 +159,7 @@ export default function MealScheduleRegistrationModule() {
 
   // ─── Week navigation handlers ────────────────────────────────────────────
   function goToPrevWeek() {
+    if (!canGoToPrevWeek) return;
     setCurrentMonday((prev) => shiftWeek(prev, -1));
   }
   function goToNextWeek() {
@@ -148,6 +172,21 @@ export default function MealScheduleRegistrationModule() {
     mealType: MealType,
     entry: ScheduleEntry
   ) {
+    if (isPastWeekSelected) {
+      toast.warning("You cannot schedule meals for past weeks.");
+      return;
+    }
+
+    const isDuplicateMeal = Object.values(schedule).some((daySchedule) =>
+      Object.values(daySchedule).some((entries) =>
+        entries.some((existingEntry) => existingEntry.meal.id === entry.meal.id)
+      )
+    );
+    if (isDuplicateMeal) {
+      toast.warning("This meal is already scheduled for the selected date range.");
+      return;
+    }
+
     setSchedule((prev) => {
       const next = { ...prev };
       next[day] = { ...next[day] };
@@ -171,6 +210,11 @@ export default function MealScheduleRegistrationModule() {
     uid: string,
     quantity: number
   ) {
+    if (isPastWeekSelected) {
+      toast.warning("You cannot schedule meals for past weeks.");
+      return;
+    }
+
     setSchedule((prev) => {
       const next = { ...prev };
       next[day] = { ...next[day] };
@@ -188,16 +232,16 @@ export default function MealScheduleRegistrationModule() {
   }
 
   // ─── "Done Scheduling" → check duplicates → open review dialog ───────────
-  const entryCount = React.useMemo(
-    () => countScheduleEntries(schedule),
-    [schedule]
-  );
-
   async function handleOpenReview() {
     if (entryCount === 0) {
       toast.warning(
         "No meals scheduled yet. Drag meals into the calendar first."
       );
+      return;
+    }
+
+    if (hasDuplicateMealsInWeek) {
+      toast.error("Duplicate meals found in this date range. Keep only one entry per meal before submitting.");
       return;
     }
 
@@ -367,7 +411,13 @@ export default function MealScheduleRegistrationModule() {
 
       {/* ── Week navigator ────────────────────────────────────────────────── */}
       <div className="flex items-center gap-3">
-        <Button variant="outline" size="icon" onClick={goToPrevWeek} title="Previous week">
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={goToPrevWeek}
+          title="Previous week"
+          disabled={!canGoToPrevWeek}
+        >
           <ChevronLeftIcon className="size-4" />
           <span className="sr-only">Previous week</span>
         </Button>

@@ -51,17 +51,17 @@ export default function DuplicateWarningDialog({
             <AlertTriangleIcon className="h-5 w-5 text-yellow-600" />
             <DialogTitle>Duplicate Meal Schedule Detected</DialogTitle>
           </div>
-          <DialogDescription className="space-y-2 pt-2">
-            <p>
-              You are scheduling meals that previously had cancelled or rejected purchase orders:
-            </p>
-            <ul className="list-disc list-inside space-y-1 text-sm">
-              {dates.map((meal, idx) => (
-                <li key={idx}>{formatMeal(meal)}</li>
-              ))}
-            </ul>
-            <p className="font-semibold pt-2">Are you sure you want to do this again?</p>
+          <DialogDescription className="pt-2">
+            You are scheduling meals that previously had cancelled or rejected purchase orders:
           </DialogDescription>
+          <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground">
+            {dates.map((meal, idx) => (
+              <li key={idx}>{formatMeal(meal)}</li>
+            ))}
+          </ul>
+          <p className="pt-2 text-sm font-semibold text-muted-foreground">
+            Are you sure you want to do this again?
+          </p>
         </DialogHeader>
 
         <DialogFooter>
