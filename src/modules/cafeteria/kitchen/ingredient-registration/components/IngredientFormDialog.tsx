@@ -303,24 +303,17 @@ export default function IngredientFormDialog({
                       Unit of Measurement{" "}
                       <span className="text-destructive">*</span>
                     </FormLabel>
-                    <Select
+                    <SearchableSelect
+                      className="w-full"
                       disabled={optionsLoading}
-                      value={field.value != null ? String(field.value) : ""}
+                      value={field.value != null ? String(field.value) : undefined}
                       onValueChange={(v) => field.onChange(Number(v))}
-                    >
-                      <FormControl>
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Select unit…" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {options.units.map((u) => (
-                          <SelectItem key={u.value} value={String(u.value)}>
-                            {u.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      placeholder="Select unit..."
+                      options={options.units.map((u) => ({
+                        value: String(u.value),
+                        label: u.label,
+                      }))}
+                    />
                     <FormMessage />
                   </FormItem>
                 )}
