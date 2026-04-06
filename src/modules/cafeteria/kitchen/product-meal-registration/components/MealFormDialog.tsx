@@ -522,9 +522,12 @@ function AddIngredientDialog({ open: dialogOpen, onOpenChange, ingredients, exis
   const [openPopover, setOpenPopover] = React.useState(false);
   const [searchTerm, setSearchTerm] = React.useState("");
 
-  // Filter based on existing ingredients AND search term
+  // Filter based on existing ingredients, active status, AND search term
   const selectableIngredients = React.useMemo(() => {
     return ingredients.filter((ing) => {
+      // Exclude inactive ingredients
+      if (ing.is_active !== 1 && ing.is_active !== true) return false;
+      
       if (existingIngredientIds.includes(ing.id)) return false;
       if (!searchTerm) return true;
       const term = searchTerm.toLowerCase();
