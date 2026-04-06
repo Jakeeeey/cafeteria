@@ -23,6 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import {
   Form,
   FormControl,
@@ -244,27 +245,20 @@ export default function IngredientFormDialog({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Brand</FormLabel>
-                    <Select
+                    <SearchableSelect
+                      className="w-full"
                       disabled={optionsLoading}
                       value={toSelectString(field.value)}
                       onValueChange={(v) => field.onChange(fromSelectString(v))}
-                    >
-                      <FormControl>
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Select brand…" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value={NONE_VALUE}>
-                          <span className="text-muted-foreground">None</span>
-                        </SelectItem>
-                        {options.brands.map((b) => (
-                          <SelectItem key={b.value} value={String(b.value)}>
-                            {b.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      placeholder="Select brand..."
+                      options={[
+                        { value: NONE_VALUE, label: "None" },
+                        ...options.brands.map((b) => ({
+                          value: String(b.value),
+                          label: b.label,
+                        })),
+                      ]}
+                    />
                     <FormMessage />
                   </FormItem>
                 )}
@@ -277,27 +271,20 @@ export default function IngredientFormDialog({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Category</FormLabel>
-                    <Select
+                    <SearchableSelect
+                      className="w-full"
                       disabled={optionsLoading}
                       value={toSelectString(field.value)}
                       onValueChange={(v) => field.onChange(fromSelectString(v))}
-                    >
-                      <FormControl>
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Select category…" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value={NONE_VALUE}>
-                          <span className="text-muted-foreground">None</span>
-                        </SelectItem>
-                        {options.categories.map((c) => (
-                          <SelectItem key={c.value} value={String(c.value)}>
-                            {c.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      placeholder="Select category..."
+                      options={[
+                        { value: NONE_VALUE, label: "None" },
+                        ...options.categories.map((c) => ({
+                          value: String(c.value),
+                          label: c.label,
+                        })),
+                      ]}
+                    />
                     <FormMessage />
                   </FormItem>
                 )}
