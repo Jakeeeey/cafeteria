@@ -4,6 +4,7 @@ import * as React from "react";
 import { GripVerticalIcon } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 
 import type { Meal, MealCategory } from "../types";
@@ -66,6 +67,22 @@ export default function MealPalettePanel({
   categories,
   isLoading,
 }: MealPalettePanelProps) {
+  const [search, setSearch] = React.useState("");
+
+  const filteredCategories = React.useMemo(() => {
+    const query = search.trim().toLowerCase();
+    if (!query) return categories;
+
+    return categories
+      .map((category) => ({
+        ...category,
+        meals: category.meals.filter((meal) =>
+          meal.name.toLowerCase().includes(query)
+        ),
+      }))
+      .filter((category) => category.meals.length > 0);
+  }, [categories, search]);
+
   return (
     <aside className="flex flex-col gap-4 rounded-lg border bg-muted/30 p-3">
       <div>
@@ -74,6 +91,13 @@ export default function MealPalettePanel({
           Drag a meal into the schedule table.
         </p>
       </div>
+
+      <Input
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        placeholder="Search meals..."
+        className="h-8"
+      />
 
       <div className="flex flex-col gap-4 overflow-y-auto max-h-[calc(75vh-12rem)]">
         {isLoading ? (
@@ -84,8 +108,12 @@ export default function MealPalettePanel({
           <p className="text-xs text-muted-foreground italic">
             No meals registered yet.
           </p>
+        ) : filteredCategories.length === 0 ? (
+          <p className="text-xs text-muted-foreground italic">
+            No meals match your search.
+          </p>
         ) : (
-          categories.map((cat) => (
+          filteredCategories.map((cat) => (
             <CategoryGroup
               key={cat.name}
               category={cat}

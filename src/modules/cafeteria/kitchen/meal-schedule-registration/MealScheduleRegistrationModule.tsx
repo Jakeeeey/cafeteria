@@ -79,10 +79,18 @@ export default function MealScheduleRegistrationModule() {
     () => formatWeekRange(currentMonday),
     [currentMonday]
   );
+  const currentWeekIso = toISODate(getMondayOfWeek(new Date()));
+  const selectedWeekIso = toISODate(currentMonday);
+  const isPastWeekSelected = selectedWeekIso < currentWeekIso;
+  const canGoToPrevWeek = selectedWeekIso > currentWeekIso;
 
   // ─── Weekly schedule state ─────────────────────────────────────────────────
   const [schedule, setSchedule] = React.useState<WeeklySchedule>(() =>
     readStoredSchedule(toISODate(readStoredMonday()))
+  );
+  const entryCount = React.useMemo(
+    () => countScheduleEntries(schedule),
+    [schedule]
   );
   // ─── Current user ──────────────────────────────────────────────────────────────────
   const [currentUserId, setCurrentUserId] = React.useState<number | null>(null);
@@ -94,6 +102,11 @@ export default function MealScheduleRegistrationModule() {
   const [duplicateWarningOpen, setDuplicateWarningOpen] = React.useState(false);
   const [duplicateMeals, setDuplicateMeals] = React.useState<Array<{ date: string; mealType: string; mealName: string }>>([]);
   const [isCheckingDuplicates, setIsCheckingDuplicates] = React.useState(false);
+  const [pendingDuplicateEntry, setPendingDuplicateEntry] = React.useState<{
+    day: DayOfWeek;
+    mealType: MealType;
+    entry: ScheduleEntry;
+  } | null>(null);
 
   // ─── Load meals on mount ─────────────────────────────────────────────────
   const loadMeals = React.useCallback(async () => {
@@ -112,6 +125,11 @@ export default function MealScheduleRegistrationModule() {
   React.useEffect(() => {
     loadMeals();
     fetchCurrentUserId().then(setCurrentUserId);
+
+    // Warm duplicate index so first drag check responds faster.
+    void checkDuplicateMeals([]).catch(() => {
+      // Silent warmup; real checks still surface errors.
+    });
   }, [loadMeals]);
 
   // ─── Persist current week + sync ref when week changes ──────────────────
@@ -136,6 +154,7 @@ export default function MealScheduleRegistrationModule() {
 
   // ─── Week navigation handlers ────────────────────────────────────────────
   function goToPrevWeek() {
+    if (!canGoToPrevWeek) return;
     setCurrentMonday((prev) => shiftWeek(prev, -1));
   }
   function goToNextWeek() {
@@ -143,7 +162,7 @@ export default function MealScheduleRegistrationModule() {
   }
 
   // ─── Schedule mutation handlers ──────────────────────────────────────────
-  function handleAddEntry(
+  function addEntryToSchedule(
     day: DayOfWeek,
     mealType: MealType,
     entry: ScheduleEntry
@@ -154,6 +173,71 @@ export default function MealScheduleRegistrationModule() {
       next[day][mealType] = [...next[day][mealType], entry];
       return next;
     });
+  }
+
+  function handleAddEntry(
+    day: DayOfWeek,
+    mealType: MealType,
+    entry: ScheduleEntry
+  ) {
+    if (isPastWeekSelected) {
+      toast.warning("You cannot schedule meals for past weeks.");
+      return;
+    }
+
+    const isDuplicateMealOnDay = Object.values(schedule[day]).some((entries) =>
+      entries.some((existingEntry) => existingEntry.meal.id === entry.meal.id)
+    );
+    if (isDuplicateMealOnDay) {
+      toast.warning("This meal is already scheduled on this day.");
+      return;
+    }
+
+    void (async () => {
+      setIsCheckingDuplicates(true);
+      try {
+        const scheduledMeal = {
+          date: weekDates[day],
+          mealType,
+          mealName: entry.meal.name,
+        };
+
+        const { approved, cancelled, rejected } = await checkDuplicateMeals([scheduledMeal]);
+
+        if (approved.length > 0) {
+          const formattedMeals = approved
+            .map((m) => {
+              const date = new Date(m.date);
+              const dateStr = date.toLocaleDateString("en-US", {
+                weekday: "long",
+                month: "long",
+                day: "numeric",
+              });
+              return `${m.mealName} (${m.mealType}) on ${dateStr}`;
+            })
+            .join("; ");
+
+          toast.error(
+            `Cannot schedule this meal. The following already has approved purchase orders: ${formattedMeals}`
+          );
+          return;
+        }
+
+        const warningMeals = [...cancelled, ...rejected];
+        if (warningMeals.length > 0) {
+          setDuplicateMeals(warningMeals);
+          setPendingDuplicateEntry({ day, mealType, entry });
+          setDuplicateWarningOpen(true);
+          return;
+        }
+
+        addEntryToSchedule(day, mealType, entry);
+      } catch (err: unknown) {
+        toast.error(err instanceof Error ? err.message : "Failed to check for existing purchase orders.");
+      } finally {
+        setIsCheckingDuplicates(false);
+      }
+    })();
   }
 
   function handleRemoveEntry(day: DayOfWeek, mealType: MealType, uid: string) {
@@ -171,6 +255,11 @@ export default function MealScheduleRegistrationModule() {
     uid: string,
     quantity: number
   ) {
+    if (isPastWeekSelected) {
+      toast.warning("You cannot schedule meals for past weeks.");
+      return;
+    }
+
     setSchedule((prev) => {
       const next = { ...prev };
       next[day] = { ...next[day] };
@@ -187,13 +276,8 @@ export default function MealScheduleRegistrationModule() {
     toast.success("Schedule cleared.");
   }
 
-  // ─── "Done Scheduling" → check duplicates → open review dialog ───────────
-  const entryCount = React.useMemo(
-    () => countScheduleEntries(schedule),
-    [schedule]
-  );
-
-  async function handleOpenReview() {
+  // ─── "Done Scheduling" → open review dialog ───────────────────────────────
+  function handleOpenReview() {
     if (entryCount === 0) {
       toast.warning(
         "No meals scheduled yet. Drag meals into the calendar first."
@@ -201,78 +285,26 @@ export default function MealScheduleRegistrationModule() {
       return;
     }
 
-    // Collect all scheduled meals (date + meal type + meal name)
-    const scheduledMeals: Array<{ date: string; mealType: string; mealName: string }> = [];
-
-    for (const day of Object.keys(schedule)) {
-      const daySchedule = schedule[day as DayOfWeek];
-      const dayIndex = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"].indexOf(day);
-
-      if (dayIndex !== -1) {
-        const date = new Date(currentMonday);
-        date.setDate(date.getDate() + dayIndex);
-        const dateStr = toISODate(date);
-
-        for (const mealType of Object.keys(daySchedule)) {
-          const entries = daySchedule[mealType as MealType];
-          for (const entry of entries) {
-            scheduledMeals.push({
-              date: dateStr,
-              mealType: mealType,
-              mealName: entry.meal.name
-            });
-          }
-        }
-      }
-    }
-
-    // Check for duplicate meals
-    setIsCheckingDuplicates(true);
-    try {
-      const { approved, cancelled } = await checkDuplicateMeals(scheduledMeals);
-
-      // If there are approved duplicates, block submission
-      if (approved.length > 0) {
-        const formattedMeals = approved.map(m => {
-          const date = new Date(m.date);
-          const dateStr = date.toLocaleDateString("en-US", {
-            weekday: "long",
-            month: "long",
-            day: "numeric",
-          });
-          return `${m.mealName} (${m.mealType}) on ${dateStr}`;
-        }).join("; ");
-
-        toast.error(
-          `Cannot schedule meals. The following meals already have approved purchase orders: ${formattedMeals}`
-        );
-        return;
-      }
-
-      // If there are cancelled/rejected duplicates, show warning
-      if (cancelled.length > 0) {
-        setDuplicateMeals(cancelled);
-        setDuplicateWarningOpen(true);
-        return;
-      }
-
-      // No conflicts, proceed to review
-      setReviewOpen(true);
-    } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "Failed to check for existing purchase orders.");
-    } finally {
-      setIsCheckingDuplicates(false);
-    }
+    setReviewOpen(true);
   }
 
   function handleConfirmDuplicate() {
     setDuplicateWarningOpen(false);
-    setReviewOpen(true);
+    if (pendingDuplicateEntry) {
+      addEntryToSchedule(
+        pendingDuplicateEntry.day,
+        pendingDuplicateEntry.mealType,
+        pendingDuplicateEntry.entry
+      );
+    }
+    setPendingDuplicateEntry(null);
+    setDuplicateMeals([]);
   }
 
   function handleCancelDuplicate() {
     setDuplicateWarningOpen(false);
     setDuplicateMeals([]);
+    setPendingDuplicateEntry(null);
   }
 
   // ─── Confirm and submit ──────────────────────────────────────────────────
@@ -367,7 +399,13 @@ export default function MealScheduleRegistrationModule() {
 
       {/* ── Week navigator ────────────────────────────────────────────────── */}
       <div className="flex items-center gap-3">
-        <Button variant="outline" size="icon" onClick={goToPrevWeek} title="Previous week">
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={goToPrevWeek}
+          title="Previous week"
+          disabled={!canGoToPrevWeek}
+        >
           <ChevronLeftIcon className="size-4" />
           <span className="sr-only">Previous week</span>
         </Button>
@@ -414,7 +452,13 @@ export default function MealScheduleRegistrationModule() {
       {/* ── Duplicate warning dialog ──────────────────────────────────────── */}
       <DuplicateWarningDialog
         open={duplicateWarningOpen}
-        onOpenChange={setDuplicateWarningOpen}
+        onOpenChange={(open) => {
+          setDuplicateWarningOpen(open);
+          if (!open) {
+            setPendingDuplicateEntry(null);
+            setDuplicateMeals([]);
+          }
+        }}
         dates={duplicateMeals}
         onConfirm={handleConfirmDuplicate}
         onCancel={handleCancelDuplicate}

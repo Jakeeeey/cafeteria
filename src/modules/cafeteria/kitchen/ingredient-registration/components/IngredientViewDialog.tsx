@@ -1,6 +1,6 @@
 "use client";
 
-import { format, parseISO } from "date-fns";
+import { parseISO } from "date-fns";
 import {
   PackageIcon,
   TagIcon,
@@ -34,7 +34,24 @@ interface IngredientViewDialogProps {
 function formatDate(value: string | null | undefined): string {
   if (!value) return "—";
   try {
-    return format(parseISO(value), "MMM d, yyyy h:mm a");
+    const normalized = value.includes(" ") && !value.includes("T")
+      ? value.replace(" ", "T")
+      : value;
+
+    // Directus may return UTC timestamps with or without an explicit offset.
+    // Treat offset-less values as UTC to avoid browser-local timezone drift.
+    const hasExplicitOffset = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(normalized);
+    const parsed = parseISO(hasExplicitOffset ? normalized : `${normalized}Z`);
+
+    return new Intl.DateTimeFormat("en-PH", {
+      timeZone: "Asia/Manila",
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    }).format(parsed);
   } catch {
     return value;
   }
