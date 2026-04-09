@@ -75,8 +75,10 @@ export default function IngredientPriceListTable({
                                 <TableRow key={ingredient.id}>
                                     <TableCell>{startIndex + index + 1}</TableCell>
                                     <TableCell className="font-medium whitespace-nowrap">{ingredient.name}</TableCell>
-                                    <TableCell className="max-w-[150px] truncate" title={ingredient.description ?? ""}>
-                                        {ingredient.description || "—"}
+                                    <TableCell className="max-w-[150px]">
+                                        <div className="truncate hover:whitespace-normal hover:break-all transition-all duration-200">
+                                            {ingredient.description || "—"}
+                                        </div>
                                     </TableCell>
                                     <TableCell className="max-w-[100px] truncate" title={ingredient.category_name ?? ""}>
                                         {ingredient.category_name || "—"}
