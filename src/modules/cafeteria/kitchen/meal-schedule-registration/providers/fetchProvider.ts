@@ -57,78 +57,151 @@ interface DuplicateCheckResult {
   rejected: ScheduledMeal[];
 }
 
-export async function checkDuplicateMeals(
-  scheduledMeals: ScheduledMeal[]
-): Promise<DuplicateCheckResult> {
-  // Fetch all purchase orders
-  const poRes = await fetch(
-    "/api/cafeteria/kitchen/meal-purchase-order-approval",
-    { cache: "no-store" }
-  );
+interface PurchaseOrderLite {
+  id: number;
+  status?: string;
+}
+
+interface PurchaseOrderScheduleRow {
+  schedule_date?: string;
+  meal_type?: string;
+  meal_name?: string;
+}
+
+const APPROVED_STATUSES = new Set(["approved", "ordered", "received"]);
+const CANCELLED_STATUSES = new Set(["cancelled"]);
+const REJECTED_STATUSES = new Set(["rejected"]);
+
+const DUPLICATE_INDEX_TTL_MS = 30_000;
+
+let duplicateStatusIndexCache: {
+  expiresAt: number;
+  index: Map<string, Set<string>>;
+} | null = null;
+
+let duplicateStatusIndexInFlight: Promise<Map<string, Set<string>>> | null = null;
+
+function normalizeDateOnly(dateLike: string): string {
+  return dateLike.split("T")[0].trim();
+}
+
+function toScheduleKey(date: string, mealType: string, mealName: string): string {
+  return `${normalizeDateOnly(date)}|${mealType.trim().toLowerCase()}|${mealName.trim().toLowerCase()}`;
+}
+
+async function buildDuplicateStatusIndex(): Promise<Map<string, Set<string>>> {
+  const poRes = await fetch("/api/cafeteria/kitchen/meal-purchase-order-approval", {
+    cache: "no-store",
+  });
   if (!poRes.ok) {
     throw new Error("Failed to check existing purchase orders");
   }
-  const purchaseOrders = await poRes.json();
 
+  const purchaseOrdersRaw = await poRes.json();
+  const purchaseOrders: PurchaseOrderLite[] = Array.isArray(purchaseOrdersRaw)
+    ? purchaseOrdersRaw
+    : (purchaseOrdersRaw?.data ?? purchaseOrdersRaw?.content ?? []);
+
+  const index = new Map<string, Set<string>>();
+
+  const scheduleResponses = await Promise.allSettled(
+    purchaseOrders.map(async (po) => {
+      const res = await fetch(
+        `/api/cafeteria/kitchen/meal-purchase-order-approval?id=${po.id}&view=schedules`,
+        { cache: "no-store" }
+      );
+      if (!res.ok) return null;
+
+      const rows = await res.json();
+      const schedules: PurchaseOrderScheduleRow[] = Array.isArray(rows)
+        ? rows
+        : (rows?.data ?? rows?.content ?? []);
+
+      return {
+        status: String(po.status ?? "").trim().toLowerCase(),
+        schedules,
+      };
+    })
+  );
+
+  for (const result of scheduleResponses) {
+    if (result.status !== "fulfilled" || !result.value) continue;
+    const { status, schedules } = result.value;
+
+    for (const row of schedules) {
+      if (!row.schedule_date || !row.meal_type || !row.meal_name) continue;
+
+      const key = toScheduleKey(row.schedule_date, row.meal_type, row.meal_name);
+      const existing = index.get(key) ?? new Set<string>();
+      existing.add(status);
+      index.set(key, existing);
+    }
+  }
+
+  return index;
+}
+
+async function getDuplicateStatusIndex(): Promise<Map<string, Set<string>>> {
+  const now = Date.now();
+  if (duplicateStatusIndexCache && duplicateStatusIndexCache.expiresAt > now) {
+    return duplicateStatusIndexCache.index;
+  }
+
+  if (!duplicateStatusIndexInFlight) {
+    duplicateStatusIndexInFlight = buildDuplicateStatusIndex()
+      .then((index) => {
+        duplicateStatusIndexCache = {
+          index,
+          expiresAt: Date.now() + DUPLICATE_INDEX_TTL_MS,
+        };
+        return index;
+      })
+      .finally(() => {
+        duplicateStatusIndexInFlight = null;
+      });
+  }
+
+  return duplicateStatusIndexInFlight;
+}
+
+export function invalidateDuplicateMealsCache(): void {
+  duplicateStatusIndexCache = null;
+}
+
+export async function checkDuplicateMeals(
+  scheduledMeals: ScheduledMeal[]
+): Promise<DuplicateCheckResult> {
   const approved: ScheduledMeal[] = [];
   const cancelled: ScheduledMeal[] = [];
   const rejected: ScheduledMeal[] = [];
 
-  // For each purchase order, fetch its schedules
-  for (const po of purchaseOrders) {
-    try {
-      const schedulesRes = await fetch(
-        `/api/cafeteria/kitchen/meal-purchase-order-approval?id=${po.id}&view=schedules`,
-        { cache: "no-store" }
-      );
+  if (scheduledMeals.length === 0) {
+    return { approved, cancelled, rejected };
+  }
 
-      if (!schedulesRes.ok) continue;
+  const statusIndex = await getDuplicateStatusIndex();
+  const seen = new Set<string>();
 
-      const schedules = await schedulesRes.json();
-      const scheduleArray = Array.isArray(schedules) ? schedules : [];
+  for (const scheduled of scheduledMeals) {
+    const key = toScheduleKey(scheduled.date, scheduled.mealType, scheduled.mealName);
+    if (seen.has(key)) continue;
+    seen.add(key);
 
-      // Check each scheduled meal against existing schedules
-      for (const scheduled of scheduledMeals) {
-        for (const existing of scheduleArray) {
-          // Normalize dates for comparison (YYYY-MM-DD format)
-          const scheduledDate = scheduled.date.split('T')[0];
-          const existingDate = existing.schedule_date.split('T')[0];
+    const statuses = statusIndex.get(key);
+    if (!statuses || statuses.size === 0) continue;
 
-          // Check if it's the same meal on the same date and meal type
-          if (
-            scheduledDate === existingDate &&
-            scheduled.mealType.toLowerCase() === existing.meal_type.toLowerCase() &&
-            scheduled.mealName.toLowerCase() === existing.meal_name.toLowerCase()
-          ) {
-            // Found a duplicate! Categorize by purchase order status
-            if (po.status === "Approved" || po.status === "Ordered" || po.status === "Received") {
-              if (!approved.some(m =>
-                m.date === scheduled.date &&
-                m.mealType === scheduled.mealType &&
-                m.mealName === scheduled.mealName
-              )) {
-                approved.push(scheduled);
-              }
-            } else if (po.status === "Cancelled") {
-              // Only add to cancelled if not already in approved
-              if (!approved.some(m =>
-                m.date === scheduled.date &&
-                m.mealType === scheduled.mealType &&
-                m.mealName === scheduled.mealName
-              ) && !cancelled.some(m =>
-                m.date === scheduled.date &&
-                m.mealType === scheduled.mealType &&
-                m.mealName === scheduled.mealName
-              )) {
-                cancelled.push(scheduled);
-              }
-            }
-          }
-        }
-      }
-    } catch (error) {
-      console.error(`Failed to fetch schedules for PO ${po.id}:`, error);
+    if (Array.from(statuses).some((s) => APPROVED_STATUSES.has(s))) {
+      approved.push(scheduled);
       continue;
+    }
+
+    if (Array.from(statuses).some((s) => CANCELLED_STATUSES.has(s))) {
+      cancelled.push(scheduled);
+      continue;
+    }
+
+    if (Array.from(statuses).some((s) => REJECTED_STATUSES.has(s))) {
+      rejected.push(scheduled);
     }
   }
 
@@ -149,5 +222,6 @@ export async function submitSchedule(
       json.message ?? `Failed to submit schedule (${res.status})`
     );
   }
+  invalidateDuplicateMealsCache();
   return res.json();
 }

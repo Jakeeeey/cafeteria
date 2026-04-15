@@ -7,6 +7,13 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SearchableSelect } from "@/components/ui/searchable-select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 import IngredientTable from "./components/IngredientTable";
 import IngredientFormDialog from "./components/IngredientFormDialog";
@@ -53,6 +60,7 @@ export default function IngredientRegistrationModule() {
   const [search, setSearch] = React.useState("");
   const [filterBrand, setFilterBrand] = React.useState(ALL);
   const [filterCategory, setFilterCategory] = React.useState(ALL);
+  const [filterStatus, setFilterStatus] = React.useState(ALL);
 
   // ─── Load ingredients ──────────────────────────────────────────────────────
   const loadIngredients = React.useCallback(async () => {
@@ -127,12 +135,14 @@ export default function IngredientRegistrationModule() {
   const hasFilters =
     search.trim() !== "" ||
     filterBrand !== ALL ||
-    filterCategory !== ALL;
+    filterCategory !== ALL ||
+    filterStatus !== ALL;
 
   function clearFilters() {
     setSearch("");
     setFilterBrand(ALL);
     setFilterCategory(ALL);
+    setFilterStatus(ALL);
   }
 
   // ─── Filtered list ───────────────────────────────────────────────────────
@@ -162,8 +172,12 @@ export default function IngredientRegistrationModule() {
       );
     }
 
+    if (filterStatus !== ALL) {
+      result = result.filter((i) => String(i.is_active) === filterStatus);
+    }
+
     return result;
-  }, [ingredients, search, filterBrand, filterCategory]);
+  }, [ingredients, search, filterBrand, filterCategory, filterStatus]);
 
   const brandFilterOptions = React.useMemo(
     () => [
@@ -243,6 +257,18 @@ export default function IngredientRegistrationModule() {
           className="h-9 w-40"
           disabled={optionsLoading}
         />
+
+        {/* Status filter */}
+        <Select value={filterStatus} onValueChange={setFilterStatus}>
+          <SelectTrigger className="h-9 w-40 font-semibold">
+            <SelectValue placeholder="All Statuses" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL}>All Statuses</SelectItem>
+            <SelectItem value="1">Active</SelectItem>
+            <SelectItem value="0">Inactive</SelectItem>
+          </SelectContent>
+        </Select>
 
         {/* Clear filters */}
         {hasFilters && (

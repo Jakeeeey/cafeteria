@@ -339,6 +339,71 @@ export async function POST(req: NextRequest) {
 
     const { week_start, schedules, po_items = [], total_estimated_cost = 0, created_by = null } = body;
 
+    const weekStartDate = new Date(week_start ?? schedules[0]?.schedule_date);
+    if (Number.isNaN(weekStartDate.getTime())) {
+      return NextResponse.json(
+        { message: "Invalid week_start date." },
+        { status: 400 }
+      );
+    }
+
+    const monday = new Date(weekStartDate);
+    monday.setHours(0, 0, 0, 0);
+    const saturday = new Date(monday);
+    saturday.setDate(saturday.getDate() + 5);
+    const toLocalISODate = (d: Date) => {
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, "0");
+      const day = String(d.getDate()).padStart(2, "0");
+      return `${y}-${m}-${day}`;
+    };
+    const weekFrom = toLocalISODate(monday);
+    const weekTo = toLocalISODate(saturday);
+
+    const seenMealIds = new Set<number>();
+    for (const s of schedules) {
+      const mealId = Number(s.meal_id);
+      if (!Number.isFinite(mealId)) continue;
+      if (seenMealIds.has(mealId)) {
+        return NextResponse.json(
+          { message: "Duplicate meals are not allowed within the same date range." },
+          { status: 409 }
+        );
+      }
+      seenMealIds.add(mealId);
+    }
+
+    const mealIds = Array.from(seenMealIds);
+    if (mealIds.length > 0) {
+      const existingSchedulesUrl =
+        `${base}/items/meal_schedules?fields=id,meal_id,schedule_date` +
+        `&filter[deleted_at][_null]=true` +
+        `&filter[schedule_date][_between]=${encodeURIComponent(`${weekFrom},${weekTo}`)}` +
+        `&filter[meal_id][_in]=${encodeURIComponent(mealIds.join(","))}` +
+        `&limit=1`;
+
+      const existingRes = await proxyFetch(existingSchedulesUrl, {
+        method: "GET",
+        headers,
+      });
+      const existingData = await parseJson(existingRes);
+      if (!existingRes.ok) {
+        console.error("[meal-schedule-registration POST duplicate-check]", existingRes.status, existingData);
+        return NextResponse.json(
+          { message: "Failed to validate duplicate meals." },
+          { status: existingRes.status }
+        );
+      }
+
+      const existingList = toList(existingData);
+      if (existingList.length > 0) {
+        return NextResponse.json(
+          { message: "One or more meals are already scheduled in this date range." },
+          { status: 409 }
+        );
+      }
+    }
+
     // ── 1. Create all meal_schedules entries ──────────────────────────────────
     const scheduleResults: Record<string, unknown>[] = [];
     for (const s of schedules) {
@@ -370,14 +435,9 @@ export async function POST(req: NextRequest) {
     }
 
     // ── 2. Create the Purchase Order header ───────────────────────────────────
-    const monDate = new Date(week_start ?? schedules[0]?.schedule_date);
-    const satDate = new Date(monDate);
-    satDate.setDate(satDate.getDate() + 5);
-    const toISO = (d: Date) => d.toISOString().split("T")[0];
-
     const poPayload = {
-      date_from: toISO(monDate),
-      date_to: toISO(satDate),
+      date_from: weekFrom,
+      date_to: weekTo,
       total_estimated_cost: parseFloat(Number(total_estimated_cost).toFixed(4)),
       status: "Pending",
       created_by,
